@@ -1,0 +1,7 @@
+Analyze Team Performance
+
+Look over process of algorithm
+Rename the inputted files
+Move the inputted files
+Eliminate any 'copy' of the files
+Look over algorithm to fix copying paths

@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Statcast Story</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0e1117;
+    --surface: #161b25;
+    --border:  #242c3d;
+    --accent:  #3b82f6;
+    --cyan:    #22d3ee;
+    --over:    #f87171;
+    --under:   #4ade80;
+    --amber:   #fbbf24;
+    --muted:   #64748b;
+    --text:    #e2e8f0;
+    --mono:    'DM Mono', monospace;
+    --serif:   'Libre Baskerville', serif;
+  }
+
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); }
+
+  /* ── Scroll progress bar ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0;
+    height: 3px; width: 0;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+    z-index: 100;
+    transition: width 0.1s linear;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 3px; left: 0; right: 0;
+    background: rgba(14,17,23,0.88);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    z-index: 99;
+  }
+  nav .logo { font-family: var(--serif); font-size: 1rem; color: #fff; }
+  nav .nav-links { display: flex; gap: 1.5rem; }
+  nav .nav-links a {
+    font-size: 0.75rem; color: var(--muted); text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav .nav-links a:hover { color: var(--cyan); }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 60%, rgba(59,130,246,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 0.7rem; letter-spacing: 0.2em;
+    color: var(--cyan); text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    color: #fff;
+    line-height: 1.15;
+    max-width: 700px;
+    margin-bottom: 1.25rem;
+  }
+  .hero p {
+    font-size: 0.9rem; color: var(--muted);
+    max-width: 520px; line-height: 1.8;
+    margin-bottom: 2.5rem;
+  }
+  .scroll-cue {
+    font-size: 0.75rem; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    animation: bounce 2s ease-in-out infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(6px); }
+  }
+
+  /* ── Sections ── */
+  .story-section {
+    max-width: 820px; margin: 0 auto;
+    padding: 6rem 2rem;
+    border-top: 1px solid var(--border);
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .story-section.visible { opacity: 1; transform: translateY(0); }
+
+  .section-tag {
+    font-size: 0.65rem; letter-spacing: 0.15em;
+    color: var(--cyan); text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+  .section-title {
+    font-family: var(--serif);
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    color: #fff; line-height: 1.25;
+    margin-bottom: 1rem;
+  }
+  .section-body {
+    font-size: 0.875rem; color: var(--muted);
+    line-height: 1.9; max-width: 600px;
+    margin-bottom: 2rem;
+  }
+  .section-body strong { color: var(--text); font-weight: 500; }
+
+  /* ── R² Bar chart ── */
+  .r2-chart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
+  .r2-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .r2-row:last-child { margin-bottom: 0; }
+  .r2-stat { width: 36px; font-size: 0.8rem; font-weight: 500; color: var(--text); }
+  .r2-track {
+    flex: 1; height: 28px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+  .r2-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex; align-items: center; padding-left: 10px;
+    font-size: 0.75rem; font-weight: 500; color: #fff;
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  }
+  .r2-quality { width: 70px; font-size: 0.7rem; color: var(--muted); text-align: right; }
+
+  /* ── Scatter (annotated) ── */
+  .scatter-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+  }
+  .scatter-canvas { width: 100%; height: 340px; display: block; }
+
+  /* Annotation callout */
+  .callout {
+    position: absolute;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    max-width: 140px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .callout.show { opacity: 1; }
+  .callout-name  { color: #fff; font-weight: 500; }
+  .callout-stats { color: var(--muted); }
+
+  /* ── Formula box ── */
+  .formula-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    font-size: 0.82rem;
+    line-height: 2;
+    color: var(--text);
+  }
+  .formula-box .formula-line {
+    font-family: var(--mono);
+    color: var(--cyan);
+    font-size: 0.95rem;
+  }
+
+  /* ── Component table ── */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .comp-table th {
+    text-align: left; padding: 8px 12px;
+    color: var(--muted); font-weight: 400;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.7rem; letter-spacing: 0.06em;
+  }
+  .comp-table td { padding: 10px 12px; border-bottom: 1px solid rgba(36,44,61,0.5); }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .pass { color: var(--under); }
+  .fail { color: var(--over); }
+
+  /* ── Outlier strip ── */
+  .outlier-strip {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .outlier-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .outlier-name { width: 150px; font-size: 0.78rem; color: var(--text); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .outlier-track { flex: 1; height: 20px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .outlier-fill { height: 100%; border-radius: 4px; }
+  .outlier-val  { width: 52px; font-size: 0.72rem; font-weight: 500; text-align: right; }
+
+  /* ── Key stat cards ── */
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .kpi-label { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; }
+  .kpi-value { font-family: var(--serif); font-size: 1.6rem; font-weight: 700; }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 4rem 2rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.75rem; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav>
+  <span class="logo">Statcast xMB</span>
+  <div class="nav-links">
+    <a href="#setup">Setup</a>
+    <a href="#performance">Model performance</a>
+    <a href="#formula">Formula</a>
+    <a href="#outliers">Outliers</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-eyebrow">2025 out-of-sample analysis</div>
+  <h1>Can Statcast data predict what a batter will do before the season ends?</h1>
+  <p>
+    Models were trained exclusively on 2019–2024 data — exit velocity, barrel rate, sprint speed,
+    swing metrics — then applied to 2025 batters who were <em>never seen during training</em>.
+    This is the story of what worked, what didn't, and who beat the machine.
+  </p>
+  <div class="scroll-cue">
+    <span>scroll to explore</span>
+    <span>↓</span>
+  </div>
+</section>
+
+<!-- ── Section 1: Setup ── -->
+<section class="story-section" id="setup">
+  <div class="section-tag">Chapter 1 &mdash; The setup</div>
+  <h2 class="section-title">Training on history,<br>predicting the future</h2>
+  <p class="section-body">
+    The central question: can a model trained on <strong>six seasons of Statcast data</strong>
+    predict a player's counting stats in a year it has never seen?
+    We used four model types — Linear, Ridge, Lasso, and Random Forest — for each target stat,
+    then selected the best performer by held-out R² before freezing the model for 2025 deployment.
+  </p>
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">TRAINING SEASONS</div>
+      <div class="kpi-value" style="color:var(--accent)">6</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">COMPONENT STATS</div>
+      <div class="kpi-value" style="color:var(--cyan)">6</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">MODEL TYPES</div>
+      <div class="kpi-value" style="color:var(--amber)">4</div>
+    </div>
+  </div>
+  <div class="formula-box">
+    The Measurable Batting (MB) formula combines those component stats:<br>
+    <span class="formula-line">
+      MB = ((H + BB − CS) × (TB + 0.7 × SB)) / (AB + BB + CS)
+    </span><br>
+    xMB substitutes each component with its model-predicted equivalent
+    wherever the model's training R² clears a <strong>0.50 threshold</strong>.
+  </div>
+</section>
+
+<!-- ── Section 2: Model performance ── -->
+<section class="story-section" id="performance">
+  <div class="section-tag">Chapter 2 &mdash; Model performance</div>
+  <h2 class="section-title">Which stats could the model actually predict?</h2>
+  <p class="section-body">
+    The bars below show out-of-sample R² for each predicted component in 2025.
+    <strong>AB and H</strong> were the most predictable — player playing time and
+    contact profiles are relatively stable year-over-year.
+    <strong>SB and CS</strong> were harder; stolen base decisions are more
+    situational and manager-dependent than raw contact quality.
+  </p>
+  <div class="r2-chart" id="r2-chart"></div>
+</section>
+
+<!-- ── Section 3: Formula ── -->
+<section class="story-section" id="formula">
+  <div class="section-tag">Chapter 3 &mdash; xMB construction</div>
+  <h2 class="section-title">Which components earned a spot in xMB?</h2>
+  <p class="section-body">
+    Each component is evaluated against the <strong>R² threshold of 0.50</strong>.
+    Pass: the expected value (x&lt;stat&gt;) is used. Fail: the actual observed stat
+    is used as a fallback. This hybrid approach prevents a weak model from
+    corrupting the final xMB prediction.
+  </p>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Training R²</th>
+          <th>Threshold</th>
+          <th>Result</th>
+          <th>Used in xMB as</th>
+        </tr>
+      </thead>
+      <tbody id="comp-tbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ── Section 4: Scatter ── -->
+<section class="story-section" id="scatter-section">
+  <div class="section-tag">Chapter 4 &mdash; The big picture</div>
+  <h2 class="section-title">Predicted vs actual MB — 2025</h2>
+  <p class="section-body">
+    Each dot is a player. The dashed line is perfect prediction (xMB = MB).
+    Dots <strong style="color:var(--over)">above</strong> the line were
+    over-predicted — the model expected more than they produced.
+    Dots <strong style="color:var(--under)">below</strong> out-performed
+    their Statcast profile.
+    <br><br>Hover over any dot to see the player's name and error.
+  </p>
+  <div class="scatter-wrap">
+    <canvas class="scatter-canvas" id="scatter-canvas"></canvas>
+    <div class="callout" id="callout">
+      <div class="callout-name" id="c-name"></div>
+      <div class="callout-stats" id="c-stats"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Section 5: Outliers ── -->
+<section class="story-section" id="outliers">
+  <div class="section-tag">Chapter 5 &mdash; The outliers</div>
+  <h2 class="section-title">Who beat — and missed — their Statcast profile?</h2>
+  <p class="section-body">
+    These players had the largest xMB prediction errors in 2025.
+    <strong style="color:var(--over)">Coral bars</strong> = over-predicted (model expected more).
+    <strong style="color:var(--under)">Green bars</strong> = under-predicted (player out-performed).
+  </p>
+  <div class="outlier-strip" id="outlier-strip" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;"></div>
+</section>
+
+<footer>
+  Statcast xMB · Model trained 2019–2024 · Validated on 2025 season
+</footer>
+
+<script>
+/* ============================================================
+   DATA
+   ============================================================ */
+const PLAYERS = [
+  {Name:"Trea Turner", MB:99, xMB:90, TB:269, xTB:262, BB:43, xBB:41, AB:589, xAB:598, H:179, xH:167, SB:36, xSB:37, CS:7, xCS:7},
+  {Name:"Victor Scott II", MB:40, xMB:49, TB:118, xTB:139, BB:42, xBB:37, AB:398, xAB:389, H:86, xH:97, SB:34, xSB:27, CS:4, xCS:6},
+  {Name:"Bobby Witt Jr.", MB:111, xMB:114, TB:312, xTB:321, BB:49, xBB:47, AB:623, xAB:626, H:184, xH:185, SB:38, xSB:35, CS:9, xCS:7},
+  {Name:"Byron Buxton", MB:92, xMB:89, TB:269, xTB:253, BB:41, xBB:42, AB:488, xAB:487, H:129, xH:132, SB:24, xSB:23, CS:0, xCS:5},
+  {Name:"Derek Hill", MB:13, xMB:15, TB:44, xTB:47, BB:9, xBB:5, AB:134, xAB:146, H:29, xH:39, SB:7, xSB:8, CS:0, xCS:2},
+  {Name:"Johan Rojas", MB:14, xMB:13, TB:44, xTB:47, BB:13, xBB:5, AB:152, xAB:171, H:34, xH:39, SB:12, xSB:9, CS:2, xCS:2},
+  {Name:"Brandon Lockridge", MB:12, xMB:12, TB:40, xTB:41, BB:8, xBB:0, AB:134, xAB:166, H:31, xH:42, SB:10, xSB:9, CS:1, xCS:2},
+  {Name:"Eli White", MB:29, xMB:31, TB:104, xTB:102, BB:11, xBB:10, AB:256, xAB:256, H:60, xH:67, SB:10, xSB:11, CS:1, xCS:3},
+  {Name:"Jake McCarthy", MB:18, xMB:25, TB:71, xTB:81, BB:10, xBB:15, AB:206, xAB:213, H:42, xH:51, SB:6, xSB:10, CS:0, xCS:2},
+  {Name:"Bryce Teodosio", MB:10, xMB:9, TB:42, xTB:43, BB:5, xBB:0, AB:138, xAB:176, H:28, xH:33, SB:7, xSB:8, CS:1, xCS:2},
+  {Name:"Corbin Carroll", MB:106, xMB:101, TB:305, xTB:287, BB:67, xBB:54, AB:564, xAB:581, H:146, xH:161, SB:32, xSB:30, CS:6, xCS:7},
+  {Name:"Chandler Simpson", MB:51, xMB:44, TB:143, xTB:123, BB:20, xBB:16, AB:414, xAB:381, H:122, xH:112, SB:44, xSB:24, CS:12, xCS:5},
+  {Name:"Tyler Fitzgerald", MB:19, xMB:17, TB:71, xTB:72, BB:17, xBB:10, AB:217, xAB:238, H:47, xH:48, SB:9, xSB:9, CS:4, xCS:2},
+  {Name:"Denzel Clarke", MB:15, xMB:11, TB:55, xTB:37, BB:6, xBB:12, AB:148, xAB:140, H:34, xH:29, SB:6, xSB:7, CS:0, xCS:2},
+  {Name:"Pete Crow-Armstrong", MB:82, xMB:90, TB:284, xTB:274, BB:29, xBB:39, AB:591, xAB:583, H:146, xH:158, SB:35, xSB:23, CS:8, xCS:5},
+  {Name:"Brenton Doyle", MB:55, xMB:74, TB:189, xTB:221, BB:30, xBB:39, AB:502, xAB:471, H:117, xH:126, SB:18, xSB:16, CS:2, xCS:4},
+  {Name:"Edmundo Sosa", MB:34, xMB:24, TB:114, xTB:92, BB:10, xBB:0, AB:243, xAB:268, H:67, xH:71, SB:1, xSB:8, CS:1, xCS:2},
+  {Name:"Michael Helman", MB:14, xMB:6, TB:45, xTB:58, BB:7, xBB:0, AB:99, xAB:131, H:23, xH:12, SB:4, xSB:6, CS:0, xCS:2},
+  {Name:"Otto Kemp", MB:22, xMB:22, TB:81, xTB:82, BB:12, xBB:15, AB:197, xAB:192, H:46, xH:43, SB:2, xSB:7, CS:2, xCS:2},
+  {Name:"Jonatan Clase", MB:9, xMB:8, TB:30, xTB:36, BB:10, xBB:14, AB:100, xAB:93, H:21, xH:8, SB:3, xSB:6, CS:1, xCS:2},
+  {Name:"Myles Straw", MB:33, xMB:35, TB:98, xTB:101, BB:19, xBB:14, AB:267, xAB:274, H:70, xH:79, SB:12, xSB:11, CS:1, xCS:3},
+  {Name:"Cam Smith", MB:49, xMB:55, TB:158, xTB:174, BB:43, xBB:39, AB:441, xAB:463, H:104, xH:115, SB:8, xSB:16, CS:1, xCS:4},
+  {Name:"David Hamilton", MB:16, xMB:24, TB:59, xTB:68, BB:13, xBB:15, AB:177, xAB:171, H:35, xH:45, SB:22, xSB:9, CS:6, xCS:2},
+  {Name:"Jacob Young", MB:26, xMB:36, TB:93, xTB:117, BB:27, xBB:29, AB:324, xAB:320, H:75, xH:84, SB:15, xSB:12, CS:11, xCS:3},
+  {Name:"Lane Thomas", MB:9, xMB:6, TB:34, xTB:39, BB:14, xBB:13, AB:125, xAB:118, H:20, xH:7, SB:4, xSB:6, CS:1, xCS:2},
+  {Name:"Will Benson", MB:27, xMB:35, TB:100, xTB:116, BB:16, xBB:22, AB:230, xAB:217, H:52, xH:51, SB:2, xSB:7, CS:2, xCS:2},
+  {Name:"Tyrone Taylor", MB:27, xMB:32, TB:99, xTB:108, BB:16, xBB:14, AB:310, xAB:308, H:69, xH:76, SB:12, xSB:9, CS:2, xCS:2},
+  {Name:"Oswald Peraza", MB:15, xMB:21, TB:61, xTB:82, BB:17, xBB:14, AB:244, xAB:246, H:40, xH:48, SB:9, xSB:8, CS:0, xCS:2},
+  {Name:"Matt McLain", MB:55, xMB:65, TB:175, xTB:204, BB:55, xBB:52, AB:510, xAB:516, H:112, xH:122, SB:18, xSB:22, CS:2, xCS:5},
+  {Name:"Jackson Chourio", MB:78, xMB:79, TB:254, xTB:245, BB:30, xBB:32, AB:549, xAB:535, H:148, xH:149, SB:21, xSB:19, CS:7, xCS:4},
+  {Name:"Oneil Cruz", MB:58, xMB:87, TB:178, xTB:239, BB:64, xBB:60, AB:471, xAB:474, H:94, xH:121, SB:38, xSB:19, CS:5, xCS:5},
+  {Name:"Ryan Ritter", MB:18, xMB:11, TB:63, xTB:46, BB:10, xBB:6, AB:187, xAB:205, H:45, xH:42, SB:3, xSB:7, CS:1, xCS:2},
+  {Name:"Daylen Lile", MB:53, xMB:45, TB:160, xTB:138, BB:21, xBB:24, AB:321, xAB:325, H:96, xH:94, SB:8, xSB:10, CS:6, xCS:2},
+  {Name:"Christian Koss", MB:20, xMB:16, TB:64, xTB:62, BB:9, xBB:2, AB:174, xAB:179, H:46, xH:44, SB:4, xSB:6, CS:1, xCS:2},
+  {Name:"Ceddanne Rafaela", MB:66, xMB:73, TB:226, xTB:236, BB:28, xBB:31, AB:546, xAB:542, H:136, xH:143, SB:20, xSB:17, CS:5, xCS:4},
+  {Name:"Jarren Duran", MB:90, xMB:95, TB:274, xTB:281, BB:60, xBB:57, AB:620, xAB:609, H:159, xH:164, SB:24, xSB:21, CS:6, xCS:5},
+  {Name:"Blake Perkins", MB:16, xMB:14, TB:54, xTB:44, BB:15, xBB:20, AB:155, xAB:137, H:35, xH:27, SB:7, xSB:7, CS:2, xCS:2},
+  {Name:"Braxton Fulford", MB:9, xMB:4, TB:35, xTB:26, BB:7, xBB:7, AB:108, xAB:108, H:23, xH:12, SB:1, xSB:5, CS:0, xCS:1},
+  {Name:"Jake Mangum", MB:52, xMB:46, TB:149, xTB:151, BB:19, xBB:5, AB:405, xAB:414, H:120, xH:117, SB:27, xSB:13, CS:6, xCS:3},
+  {Name:"Elly De La Cruz", MB:97, xMB:93, TB:277, xTB:274, BB:67, xBB:59, AB:629, xAB:611, H:166, xH:158, SB:37, xSB:24, CS:8, xCS:6},
+  {Name:"Evan Carter", MB:26, xMB:24, TB:76, xTB:73, BB:19, xBB:19, AB:194, xAB:189, H:48, xH:45, SB:14, xSB:8, CS:2, xCS:2},
+  {Name:"Parker Meadows", MB:19, xMB:22, TB:63, xTB:68, BB:21, xBB:21, AB:191, xAB:194, H:41, xH:45, SB:4, xSB:7, CS:0, xCS:2},
+  {Name:"Matt Shaw", MB:47, xMB:47, TB:155, xTB:152, BB:38, xBB:32, AB:393, xAB:394, H:89, xH:96, SB:17, xSB:12, CS:5, xCS:3},
+  {Name:"Luis Robert Jr.", MB:44, xMB:52, TB:139, xTB:162, BB:40, xBB:32, AB:382, xAB:366, H:85, xH:92, SB:33, xSB:10, CS:8, xCS:3},
+  {Name:"Kyren Paris", MB:13, xMB:8, TB:48, xTB:51, BB:10, xBB:13, AB:126, xAB:104, H:24, xH:6, SB:7, xSB:5, CS:1, xCS:1},
+  {Name:"Noelvi Marte", MB:45, xMB:42, TB:152, xTB:137, BB:16, xBB:21, AB:339, xAB:316, H:89, xH:80, SB:10, xSB:8, CS:3, xCS:2},
+  {Name:"Jordan Westburg", MB:44, xMB:44, TB:150, xTB:147, BB:17, xBB:26, AB:328, xAB:310, H:87, xH:76, SB:1, xSB:9, CS:2, xCS:2},
+  {Name:"Dylan Crews", MB:29, xMB:38, TB:103, xTB:122, BB:24, xBB:24, AB:293, xAB:273, H:61, xH:66, SB:17, xSB:8, CS:5, xCS:2},
+  {Name:"Sam Haggerty", MB:20, xMB:12, TB:60, xTB:42, BB:16, xBB:11, AB:162, xAB:160, H:41, xH:33, SB:12, xSB:6, CS:4, xCS:2},
+  {Name:"Dylan Beavers", MB:16, xMB:26, TB:44, xTB:64, BB:26, xBB:30, AB:110, xAB:109, H:25, xH:28, SB:2, xSB:7, CS:2, xCS:2},
+  {Name:"Brice Turang", MB:93, xMB:95, TB:254, xTB:276, BB:66, xBB:64, AB:584, xAB:623, H:168, xH:169, SB:24, xSB:25, CS:8, xCS:6},
+  {Name:"Wyatt Langford", MB:74, xMB:83, TB:211, xTB:240, BB:74, xBB:61, AB:489, xAB:508, H:118, xH:132, SB:22, xSB:17, CS:6, xCS:4},
+  {Name:"John Rave", MB:14, xMB:16, TB:47, xTB:50, BB:18, xBB:21, AB:153, xAB:150, H:30, xH:31, SB:7, xSB:7, CS:2, xCS:2},
+  {Name:"Nick Gonzales", MB:40, xMB:46, TB:138, xTB:152, BB:21, xBB:21, AB:381, xAB:369, H:99, xH:99, SB:0, xSB:9, CS:2, xCS:2},
+  {Name:"Sal Frelick", MB:76, xMB:66, TB:214, xTB:200, BB:47, xBB:50, AB:528, xAB:520, H:152, xH:135, SB:19, xSB:22, CS:6, xCS:5},
+  {Name:"Ezequiel Duran", MB:16, xMB:16, TB:60, xTB:62, BB:8, xBB:7, AB:205, xAB:217, H:46, xH:47, SB:11, xSB:6, CS:2, xCS:2},
+  {Name:"Blaze Alexander", MB:24, xMB:30, TB:88, xTB:101, BB:22, xBB:25, AB:230, xAB:227, H:53, xH:57, SB:4, xSB:7, CS:6, xCS:2},
+  {Name:"Bryson Stott", MB:67, xMB:68, TB:195, xTB:203, BB:54, xBB:58, AB:499, xAB:531, H:128, xH:130, SB:24, xSB:23, CS:5, xCS:6},
+  {Name:"Connor Norby", MB:36, xMB:39, TB:121, xTB:127, BB:18, xBB:21, AB:311, xAB:304, H:78, xH:77, SB:8, xSB:7, CS:2, xCS:2},
+  {Name:"Leody Taveras", MB:12, xMB:15, TB:52, xTB:63, BB:5, xBB:5, AB:171, xAB:182, H:35, xH:38, SB:9, xSB:6, CS:3, xCS:2},
+  {Name:"Harrison Bader", MB:66, xMB:56, TB:201, xTB:187, BB:39, xBB:39, AB:448, xAB:442, H:124, xH:110, SB:11, xSB:15, CS:7, xCS:4},
+  {Name:"Jared Triolo", MB:38, xMB:44, TB:118, xTB:136, BB:39, xBB:39, AB:331, xAB:331, H:75, xH:75, SB:13, xSB:13, CS:2, xCS:2},
+  {Name:"Joey Ortiz", MB:42, xMB:53, TB:149, xTB:175, BB:27, xBB:28, AB:470, xAB:456, H:108, xH:114, SB:14, xSB:12, CS:3, xCS:3},
+  {Name:"Luke Keaschall", MB:32, xMB:28, TB:81, xTB:72, BB:19, xBB:23, AB:182, xAB:170, H:55, xH:46, SB:14, xSB:6, CS:3, xCS:2},
+  {Name:"Hyeseong Kim", MB:21, xMB:15, TB:62, xTB:42, BB:7, xBB:7, AB:161, xAB:161, H:45, xH:45, SB:13, xSB:13, CS:1, xCS:1},
+  {Name:"Luke Raley", MB:16, xMB:20, TB:57, xTB:76, BB:19, xBB:22, AB:183, xAB:189, H:37, xH:34, SB:2, xSB:6, CS:1, xCS:2},
+  {Name:"Jordan Beck", MB:70, xMB:66, TB:224, xTB:213, BB:43, xBB:51, AB:539, xAB:518, H:139, xH:125, SB:19, xSB:15, CS:8, xCS:4},
+  {Name:"Jordan Walker", MB:31, xMB:44, TB:111, xTB:149, BB:29, xBB:32, AB:363, xAB:350, H:78, xH:79, SB:10, xSB:9, CS:3, xCS:2},
+  {Name:"Ernie Clement", MB:66, xMB:59, TB:217, xTB:193, BB:27, xBB:27, AB:545, xAB:477, H:151, xH:130, SB:6, xSB:12, CS:5, xCS:3},
+  {Name:"Fernando Tatis Jr.", MB:100, xMB:111, TB:265, xTB:309, BB:89, xBB:68, AB:594, xAB:609, H:159, xH:169, SB:32, xSB:16, CS:7, xCS:4},
+  {Name:"Colby Thomas", MB:13, xMB:7, TB:50, xTB:44, BB:7, xBB:0, AB:120, xAB:133, H:27, xH:22, SB:2, xSB:5, CS:1, xCS:1},
+  {Name:"Brooks Baldwin", MB:36, xMB:43, TB:122, xTB:136, BB:21, xBB:24, AB:300, xAB:300, H:72, xH:76, SB:5, xSB:8, CS:0, xCS:2},
+  {Name:"Trevor Story", MB:86, xMB:90, TB:265, xTB:270, BB:33, xBB:44, AB:612, xAB:599, H:161, xH:156, SB:31, xSB:14, CS:1, xCS:4},
+  {Name:"Nico Hoerner", MB:84, xMB:78, TB:236, xTB:234, BB:39, xBB:39, AB:599, xAB:564, H:178, xH:153, SB:29, xSB:15, CS:6, xCS:4},
+  {Name:"Jackson Holliday", MB:66, xMB:80, TB:220, xTB:251, BB:56, xBB:57, AB:586, xAB:563, H:142, xH:147, SB:17, xSB:17, CS:11, xCS:4},
+  {Name:"Shea Langeliers", MB:85, xMB:76, TB:258, xTB:230, BB:36, xBB:36, AB:481, xAB:481, H:133, xH:133, SB:7, xSB:7, CS:1, xCS:1},
+  {Name:"Otto Lopez", MB:61, xMB:80, TB:200, xTB:238, BB:44, xBB:43, AB:544, xAB:512, H:134, xH:144, SB:15, xSB:13, CS:6, xCS:3},
+  {Name:"James Outman", MB:9, xMB:15, TB:43, xTB:70, BB:12, xBB:12, AB:134, xAB:134, H:18, xH:18, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Joey Loperfido", MB:16, xMB:7, TB:48, xTB:27, BB:4, xBB:2, AB:96, xAB:106, H:32, xH:29, SB:1, xSB:4, CS:2, xCS:1},
+  {Name:"Marcus Semien", MB:54, xMB:68, TB:171, xTB:204, BB:50, xBB:51, AB:470, xAB:474, H:108, xH:118, SB:11, xSB:12, CS:1, xCS:3},
+  {Name:"Mickey Moniak", MB:69, xMB:65, TB:225, xTB:204, BB:22, xBB:25, AB:434, xAB:405, H:117, xH:113, SB:9, xSB:8, CS:3, xCS:2},
+  {Name:"Alejandro Osuna", MB:13, xMB:18, TB:42, xTB:60, BB:21, xBB:21, AB:151, xAB:151, H:32, xH:32, SB:5, xSB:5, CS:4, xCS:4},
+  {Name:"Tyler Freeman", MB:46, xMB:54, TB:136, xTB:161, BB:34, xBB:39, AB:377, xAB:389, H:106, xH:106, SB:18, xSB:8, CS:9, xCS:2},
+  {Name:"Dansby Swanson", MB:76, xMB:94, TB:246, xTB:275, BB:47, xBB:56, AB:590, xAB:585, H:144, xH:157, SB:20, xSB:16, CS:3, xCS:4},
+  {Name:"Jackson Merrill", MB:62, xMB:68, TB:201, xTB:210, BB:33, xBB:30, AB:440, xAB:431, H:116, xH:122, SB:1, xSB:10, CS:2, xCS:3},
+  {Name:"Miles Mastrobuoni", MB:15, xMB:15, TB:45, xTB:46, BB:17, xBB:17, AB:152, xAB:152, H:38, xH:38, SB:6, xSB:6, CS:3, xCS:3},
+  {Name:"Michael Harris II", MB:68, xMB:88, TB:250, xTB:273, BB:16, xBB:28, AB:611, xAB:575, H:152, xH:165, SB:20, xSB:12, CS:6, xCS:3},
+  {Name:"Gunnar Henderson", MB:91, xMB:98, TB:253, xTB:275, BB:62, xBB:55, AB:577, xAB:587, H:158, xH:163, SB:30, xSB:17, CS:5, xCS:4},
+  {Name:"Warming Bernabel", MB:16, xMB:12, TB:57, xTB:43, BB:7, xBB:7, AB:139, xAB:139, H:35, xH:35, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Christian Moore", MB:17, xMB:16, TB:60, xTB:55, BB:19, xBB:19, AB:162, xAB:162, H:32, xH:32, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Trey Sweeney", MB:23, xMB:29, TB:86, xTB:109, BB:26, xBB:26, AB:296, xAB:296, H:58, xH:58, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Thomas Saggese", MB:29, xMB:30, TB:94, xTB:98, BB:16, xBB:16, AB:275, xAB:275, H:71, xH:71, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Jake Fraley", MB:24, xMB:22, TB:73, xTB:68, BB:25, xBB:25, AB:191, xAB:191, H:46, xH:46, SB:4, xSB:4, CS:3, xCS:3},
+  {Name:"Cedric Mullins", MB:53, xMB:59, TB:170, xTB:182, BB:50, xBB:50, AB:435, xAB:463, H:94, xH:108, SB:22, xSB:15, CS:4, xCS:4},
+  {Name:"Masyn Winn", MB:53, xMB:63, TB:178, xTB:200, BB:34, xBB:48, AB:491, xAB:503, H:124, xH:127, SB:9, xSB:15, CS:5, xCS:4},
+  {Name:"Daulton Varsho", MB:39, xMB:39, TB:136, xTB:128, BB:17, xBB:21, AB:248, xAB:230, H:59, xH:55, SB:2, xSB:7, CS:0, xCS:2},
+  {Name:"Tommy Edman", MB:35, xMB:37, TB:132, xTB:139, BB:19, xBB:19, AB:346, xAB:346, H:78, xH:78, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Dane Myers", MB:30, xMB:36, TB:100, xTB:122, BB:23, xBB:23, AB:307, xAB:307, H:72, xH:72, SB:18, xSB:18, CS:5, xCS:5},
+  {Name:"Nick Loftin", MB:16, xMB:19, TB:60, xTB:73, BB:14, xBB:14, AB:168, xAB:168, H:35, xH:35, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Kameron Misner", MB:20, xMB:19, TB:68, xTB:67, BB:16, xBB:16, AB:197, xAB:197, H:42, xH:42, SB:8, xSB:8, CS:1, xCS:1},
+  {Name:"J.T. Realmuto", MB:60, xMB:70, TB:193, xTB:227, BB:35, xBB:35, AB:502, xAB:502, H:129, xH:129, SB:8, xSB:8, CS:2, xCS:2},
+  {Name:"Seiya Suzuki", MB:90, xMB:102, TB:273, xTB:296, BB:71, xBB:72, AB:571, xAB:593, H:140, xH:158, SB:5, xSB:17, CS:2, xCS:5},
+  {Name:"Anthony Volpe", MB:56, xMB:76, TB:211, xTB:240, BB:43, xBB:53, AB:539, xAB:539, H:114, xH:134, SB:18, xSB:14, CS:8, xCS:4},
+  {Name:"Alek Thomas", MB:45, xMB:48, TB:160, xTB:172, BB:21, xBB:21, AB:433, xAB:433, H:108, xH:108, SB:7, xSB:7, CS:4, xCS:4},
+  {Name:"Romy Gonzalez", MB:50, xMB:49, TB:152, xTB:152, BB:18, xBB:20, AB:315, xAB:313, H:96, xH:90, SB:6, xSB:6, CS:5, xCS:2},
+  {Name:"Xavier Edwards", MB:71, xMB:72, TB:198, xTB:205, BB:49, xBB:50, AB:561, xAB:526, H:159, xH:144, SB:27, xSB:16, CS:7, xCS:4},
+  {Name:"Zach McKinstry", MB:66, xMB:59, TB:198, xTB:175, BB:46, xBB:46, AB:452, xAB:452, H:117, xH:117, SB:19, xSB:19, CS:5, xCS:5},
+  {Name:"Henry Davis", MB:16, xMB:26, TB:70, xTB:116, BB:18, xBB:18, AB:252, xAB:252, H:42, xH:42, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Austin Martin", MB:22, xMB:25, TB:57, xTB:60, BB:22, xBB:31, AB:156, xAB:147, H:44, xH:40, SB:11, xSB:5, CS:4, xCS:1},
+  {Name:"Jon Berti", MB:7, xMB:6, TB:23, xTB:20, BB:5, xBB:5, AB:100, xAB:100, H:21, xH:21, SB:11, xSB:11, CS:3, xCS:3},
+  {Name:"Tyler O'Neill", MB:21, xMB:31, TB:71, xTB:105, BB:22, xBB:22, AB:181, xAB:181, H:36, xH:36, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Vinny Capra", MB:3, xMB:2, TB:17, xTB:14, BB:3, xBB:3, AB:96, xAB:96, H:12, xH:12, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Cooper Hummel", MB:7, xMB:14, TB:24, xTB:50, BB:14, xBB:14, AB:88, xAB:88, H:15, xH:15, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Brandon Marsh", MB:59, xMB:56, TB:168, xTB:164, BB:38, xBB:38, AB:379, xAB:381, H:106, xH:103, SB:7, xSB:9, CS:1, xCS:2},
+  {Name:"Max Schuemann", MB:15, xMB:19, TB:50, xTB:64, BB:22, xBB:22, AB:183, xAB:183, H:36, xH:36, SB:7, xSB:7, CS:1, xCS:1},
+  {Name:"Austin Riley", MB:54, xMB:62, TB:178, xTB:203, BB:27, xBB:27, AB:416, xAB:416, H:108, xH:108, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Darell Hernaiz", MB:15, xMB:20, TB:53, xTB:67, BB:17, xBB:10, AB:173, xAB:191, H:40, xH:54, SB:3, xSB:5, CS:4, xCS:1},
+  {Name:"Tim Tawa", MB:20, xMB:22, TB:69, xTB:79, BB:20, xBB:20, AB:199, xAB:199, H:40, xH:40, SB:8, xSB:8, CS:2, xCS:2},
+  {Name:"Willi Castro", MB:44, xMB:48, TB:147, xTB:156, BB:40, xBB:34, AB:402, xAB:408, H:91, xH:101, SB:10, xSB:10, CS:4, xCS:3},
+  {Name:"Cody Bellinger", MB:97, xMB:93, TB:282, xTB:273, BB:57, xBB:57, AB:588, xAB:605, H:160, xH:164, SB:13, xSB:18, CS:2, xCS:5},
+  {Name:"Taylor Walls", MB:26, xMB:29, TB:90, xTB:103, BB:26, xBB:26, AB:282, xAB:282, H:62, xH:62, SB:14, xSB:14, CS:6, xCS:6},
+  {Name:"Taylor Trammell", MB:11, xMB:8, TB:39, xTB:38, BB:17, xBB:17, AB:117, xAB:105, H:23, xH:9, SB:3, xSB:5, CS:2, xCS:1},
+  {Name:"Jake Meyers", MB:46, xMB:49, TB:128, xTB:137, BB:31, xBB:31, AB:343, xAB:343, H:100, xH:100, SB:16, xSB:16, CS:5, xCS:5},
+  {Name:"Max Muncy", MB:56, xMB:63, TB:147, xTB:168, BB:64, xBB:64, AB:313, xAB:313, H:76, xH:76, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Max Muncy", MB:19, xMB:21, TB:78, xTB:84, BB:10, xBB:10, AB:206, xAB:206, H:44, xH:44, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Christian Yelich", MB:88, xMB:87, TB:259, xTB:259, BB:64, xBB:63, AB:573, xAB:585, H:151, xH:155, SB:16, xSB:16, CS:6, xCS:4},
+  {Name:"CJ Abrams", MB:80, xMB:84, TB:251, xTB:247, BB:37, xBB:44, AB:580, xAB:553, H:149, xH:147, SB:31, xSB:13, CS:3, xCS:4},
+  {Name:"Jonathan India", MB:51, xMB:62, TB:172, xTB:209, BB:54, xBB:54, AB:497, xAB:497, H:116, xH:116, SB:0, xSB:0, CS:4, xCS:4},
+  {Name:"Robert Hassell III", MB:16, xMB:22, TB:62, xTB:70, BB:8, xBB:14, AB:197, xAB:183, H:44, xH:45, SB:4, xSB:5, CS:0, xCS:1},
+  {Name:"Jung Hoo Lee", MB:74, xMB:74, TB:228, xTB:227, BB:47, xBB:47, AB:560, xAB:560, H:149, xH:149, SB:10, xSB:10, CS:3, xCS:3},
+  {Name:"Weston Wilson", MB:10, xMB:12, TB:41, xTB:49, BB:12, xBB:12, AB:111, xAB:111, H:22, xH:22, SB:2, xSB:2, CS:3, xCS:3},
+  {Name:"Caleb Durbin", MB:53, xMB:53, TB:172, xTB:172, BB:30, xBB:30, AB:445, xAB:445, H:114, xH:114, SB:18, xSB:18, CS:6, xCS:6},
+  {Name:"Zach Dezenzo", MB:12, xMB:20, TB:36, xTB:61, BB:11, xBB:11, AB:98, xAB:98, H:24, xH:24, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Ben Williamson", MB:26, xMB:29, TB:86, xTB:97, BB:15, xBB:15, AB:277, xAB:277, H:70, xH:70, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Matt Chapman", MB:65, xMB:72, TB:195, xTB:215, BB:71, xBB:71, AB:454, xAB:454, H:105, xH:105, SB:9, xSB:9, CS:4, xCS:4},
+  {Name:"Jake Cronenworth", MB:55, xMB:65, TB:158, xTB:186, BB:69, xBB:69, AB:419, xAB:419, H:103, xH:103, SB:3, xSB:3, CS:3, xCS:3},
+  {Name:"Zach Neto", MB:72, xMB:72, TB:238, xTB:239, BB:33, xBB:33, AB:502, xAB:502, H:129, xH:129, SB:26, xSB:26, CS:9, xCS:9},
+  {Name:"Jakob Marsee", MB:36, xMB:29, TB:100, xTB:87, BB:22, xBB:26, AB:209, xAB:191, H:61, xH:48, SB:14, xSB:5, CS:6, xCS:1},
+  {Name:"Tyler Wade", MB:8, xMB:10, TB:27, xTB:36, BB:15, xBB:15, AB:107, xAB:107, H:22, xH:22, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Andy Pages", MB:81, xMB:74, TB:268, xTB:245, BB:29, xBB:29, AB:581, xAB:581, H:158, xH:158, SB:14, xSB:14, CS:7, xCS:7},
+  {Name:"Victor Robles", MB:10, xMB:12, TB:35, xTB:46, BB:3, xBB:0, AB:106, xAB:157, H:26, xH:39, SB:6, xSB:4, CS:2, xCS:1},
+  {Name:"Alexander Canario", MB:20, xMB:22, TB:73, xTB:86, BB:17, xBB:17, AB:216, xAB:204, H:47, xH:38, SB:3, xSB:5, CS:1, xCS:1},
+  {Name:"Bryan Reynolds", MB:73, xMB:83, TB:236, xTB:267, BB:57, xBB:57, AB:587, xAB:587, H:144, xH:144, SB:3, xSB:3, CS:2, xCS:2},
+  {Name:"Jahmai Jones", MB:27, xMB:24, TB:71, xTB:62, BB:18, xBB:18, AB:129, xAB:129, H:37, xH:37, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Josh Lowe", MB:42, xMB:46, TB:145, xTB:160, BB:33, xBB:33, AB:396, xAB:396, H:87, xH:87, SB:18, xSB:18, CS:4, xCS:4},
+  {Name:"Austin Slater", MB:15, xMB:22, TB:55, xTB:70, BB:11, xBB:12, AB:148, xAB:149, H:32, xH:39, SB:1, xSB:4, CS:0, xCS:1},
+  {Name:"Javier Sanoja", MB:34, xMB:35, TB:124, xTB:117, BB:19, xBB:19, AB:313, xAB:308, H:76, xH:82, SB:6, xSB:7, CS:5, xCS:2},
+  {Name:"Zack Gelof", MB:5, xMB:3, TB:25, xTB:24, BB:7, xBB:9, AB:92, xAB:81, H:16, xH:4, SB:1, xSB:4, CS:2, xCS:1},
+  {Name:"Shohei Ohtani", MB:149, xMB:128, TB:380, xTB:357, BB:109, xBB:78, AB:611, xAB:636, H:172, xH:177, SB:20, xSB:18, CS:6, xCS:5},
+  {Name:"George Springer", MB:114, xMB:111, TB:279, xTB:271, BB:69, xBB:69, AB:498, xAB:498, H:154, xH:154, SB:18, xSB:18, CS:1, xCS:1},
+  {Name:"Colt Keith", MB:57, xMB:63, TB:171, xTB:187, BB:48, xBB:43, AB:414, xAB:412, H:106, xH:111, SB:1, xSB:9, CS:1, xCS:3},
+  {Name:"Spencer Steer", MB:65, xMB:64, TB:209, xTB:205, BB:51, xBB:51, AB:509, xAB:509, H:121, xH:121, SB:7, xSB:7, CS:1, xCS:1},
+  {Name:"Christopher Morel", MB:32, xMB:34, TB:110, xTB:120, BB:25, xBB:25, AB:278, xAB:278, H:61, xH:61, SB:7, xSB:7, CS:2, xCS:2},
+  {Name:"Nick Sogard", MB:10, xMB:9, TB:33, xTB:29, BB:5, xBB:5, AB:96, xAB:96, H:25, xH:25, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Willy Adames", MB:80, xMB:87, TB:249, xTB:274, BB:80, xBB:80, AB:591, xAB:591, H:133, xH:133, SB:12, xSB:12, CS:4, xCS:4},
+  {Name:"Connor Wong", MB:11, xMB:14, TB:40, xTB:54, BB:16, xBB:16, AB:168, xAB:168, H:32, xH:32, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Kody Clemens", MB:42, xMB:46, TB:151, xTB:167, BB:29, xBB:29, AB:348, xAB:348, H:74, xH:74, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Gavin Lux", MB:59, xMB:60, TB:167, xTB:172, BB:56, xBB:56, AB:446, xAB:446, H:120, xH:120, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Jack Suwinski", MB:11, xMB:19, TB:38, xTB:70, BB:24, xBB:24, AB:150, xAB:150, H:22, xH:22, SB:7, xSB:7, CS:1, xCS:1},
+  {Name:"Coby Mayo", MB:30, xMB:31, TB:102, xTB:105, BB:27, xBB:27, AB:263, xAB:263, H:57, xH:57, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Jake Burger", MB:39, xMB:43, TB:149, xTB:167, BB:12, xBB:12, AB:356, xAB:356, H:84, xH:84, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Carson Williams", MB:8, xMB:7, TB:35, xTB:31, BB:6, xBB:6, AB:99, xAB:99, H:17, xH:17, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Daniel Schneemann", MB:38, xMB:46, TB:134, xTB:163, BB:38, xBB:38, AB:379, xAB:379, H:78, xH:78, SB:9, xSB:9, CS:3, xCS:3},
+  {Name:"Jo Adell", MB:72, xMB:76, TB:255, xTB:269, BB:33, xBB:33, AB:526, xAB:526, H:124, xH:124, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Maikel Garcia", MB:95, xMB:102, TB:267, xTB:287, BB:62, xBB:62, AB:595, xAB:595, H:170, xH:170, SB:23, xSB:23, CS:9, xCS:9},
+  {Name:"Abraham Toro", MB:27, xMB:28, TB:96, xTB:102, BB:14, xBB:14, AB:259, xAB:259, H:62, xH:62, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Alan Roden", MB:9, xMB:9, TB:40, xTB:37, BB:8, xBB:8, AB:136, xAB:136, H:26, xH:26, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Mike Trout", MB:72, xMB:80, TB:200, xTB:223, BB:87, xBB:87, AB:456, xAB:456, H:106, xH:106, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Alex Call", MB:37, xMB:38, TB:104, xTB:107, BB:36, xBB:36, AB:270, xAB:270, H:72, xH:72, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"James Wood", MB:99, xMB:103, TB:284, xTB:295, BB:85, xBB:73, AB:598, xAB:619, H:153, xH:168, SB:15, xSB:19, CS:7, xCS:5},
+  {Name:"Brady House", MB:21, xMB:21, TB:84, xTB:83, BB:8, xBB:8, AB:261, xAB:261, H:61, xH:61, SB:5, xSB:5, CS:3, xCS:3},
+  {Name:"Kyle Isbel", MB:38, xMB:39, TB:130, xTB:134, BB:23, xBB:23, AB:368, xAB:368, H:94, xH:94, SB:4, xSB:4, CS:5, xCS:5},
+  {Name:"Chris Taylor", MB:7, xMB:7, TB:34, xTB:32, BB:5, xBB:5, AB:113, xAB:113, H:21, xH:21, SB:2, xSB:2, CS:2, xCS:2},
+  {Name:"Mark Canha", MB:7, xMB:7, TB:30, xTB:27, BB:7, xBB:7, AB:113, xAB:113, H:24, xH:24, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Michael A. Taylor", MB:28, xMB:31, TB:108, xTB:116, BB:23, xBB:27, AB:295, xAB:284, H:59, xH:57, SB:8, xSB:6, CS:3, xCS:2},
+  {Name:"Jose Iglesias", MB:26, xMB:30, TB:90, xTB:103, BB:24, xBB:24, AB:306, xAB:306, H:70, xH:70, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Roman Anthony", MB:47, xMB:49, TB:119, xTB:125, BB:40, xBB:40, AB:257, xAB:257, H:75, xH:75, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Leo Rivas", MB:13, xMB:18, TB:30, xTB:42, BB:20, xBB:20, AB:90, xAB:90, H:22, xH:22, SB:6, xSB:6, CS:0, xCS:0},
+  {Name:"Thairo Estrada", MB:15, xMB:14, TB:57, xTB:53, BB:6, xBB:6, AB:154, xAB:154, H:39, xH:39, SB:1, xSB:1, CS:3, xCS:3},
+  {Name:"Cole Young", MB:21, xMB:27, TB:68, xTB:91, BB:28, xBB:28, AB:223, xAB:223, H:47, xH:47, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Dalton Rushing", MB:12, xMB:15, TB:46, xTB:60, BB:10, xBB:10, AB:142, xAB:142, H:29, xH:29, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Isaac Collins", MB:56, xMB:51, TB:153, xTB:152, BB:57, xBB:48, AB:372, xAB:384, H:98, xH:96, SB:16, xSB:9, CS:7, xCS:3},
+  {Name:"Randy Arozarena", MB:84, xMB:97, TB:261, xTB:289, BB:64, xBB:67, AB:613, xAB:636, H:146, xH:161, SB:31, xSB:16, CS:6, xCS:4},
+  {Name:"Heston Kjerstad", MB:11, xMB:13, TB:51, xTB:59, BB:6, xBB:6, AB:156, xAB:156, H:30, xH:30, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Matt Vierling", MB:8, xMB:14, TB:27, xTB:47, BB:7, xBB:7, AB:88, xAB:88, H:21, xH:21, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Andruw Monasterio", MB:17, xMB:13, TB:55, xTB:43, BB:7, xBB:7, AB:126, xAB:126, H:34, xH:34, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Dylan Moore", MB:22, xMB:22, TB:82, xTB:82, BB:20, xBB:20, AB:219, xAB:219, H:44, xH:44, SB:14, xSB:14, CS:5, xCS:5},
+  {Name:"Nick Castellanos", MB:65, xMB:65, TB:219, xTB:219, BB:32, xBB:32, AB:547, xAB:547, H:137, xH:137, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Drew Gilbert", MB:8, xMB:7, TB:35, xTB:30, BB:7, xBB:7, AB:100, xAB:100, H:19, xH:19, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Addison Barger", MB:63, xMB:66, TB:209, xTB:220, BB:36, xBB:36, AB:460, xAB:460, H:112, xH:112, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Dylan Carlson", MB:19, xMB:24, TB:73, xTB:92, BB:21, xBB:21, AB:217, xAB:217, H:44, xH:44, SB:3, xSB:3, CS:3, xCS:3},
+  {Name:"Ezequiel Tovar", MB:42, xMB:45, TB:144, xTB:154, BB:21, xBB:21, AB:360, xAB:360, H:91, xH:91, SB:5, xSB:5, CS:3, xCS:3},
+  {Name:"Jazz Chisholm Jr.", MB:75, xMB:71, TB:222, xTB:217, BB:58, xBB:54, AB:462, xAB:465, H:112, xH:111, SB:31, xSB:11, CS:8, xCS:3},
+  {Name:"Ryan Mountcastle", MB:35, xMB:42, TB:122, xTB:148, BB:15, xBB:15, AB:332, xAB:332, H:83, xH:83, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Xander Bogaerts", MB:67, xMB:73, TB:192, xTB:213, BB:48, xBB:48, AB:491, xAB:491, H:129, xH:129, SB:20, xSB:20, CS:2, xCS:2},
+  {Name:"Casey Schmitt", MB:37, xMB:40, TB:125, xTB:135, BB:27, xBB:27, AB:312, xAB:312, H:74, xH:74, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Davis Schneider", MB:30, xMB:36, TB:82, xTB:101, BB:36, xBB:36, AB:188, xAB:188, H:44, xH:44, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Austin Hays", MB:56, xMB:53, TB:172, xTB:161, BB:29, xBB:29, AB:380, xAB:380, H:101, xH:101, SB:7, xSB:7, CS:0, xCS:0},
+  {Name:"Alex Jackson", MB:11, xMB:13, TB:43, xTB:50, BB:5, xBB:5, AB:91, xAB:91, H:20, xH:20, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Nolan Jones", MB:32, xMB:44, TB:108, xTB:150, BB:39, xBB:39, AB:355, xAB:355, H:75, xH:75, SB:8, xSB:8, CS:3, xCS:3},
+  {Name:"Wilyer Abreu", MB:56, xMB:55, TB:175, xTB:178, BB:40, xBB:33, AB:373, xAB:375, H:92, xH:93, SB:6, xSB:7, CS:3, xCS:2},
+  {Name:"Drew Waters", MB:18, xMB:19, TB:65, xTB:67, BB:11, xBB:11, AB:206, xAB:206, H:50, xH:50, SB:5, xSB:5, CS:3, xCS:3},
+  {Name:"Bo Naylor", MB:38, xMB:45, TB:136, xTB:162, BB:45, xBB:45, AB:359, xAB:359, H:70, xH:70, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Ryan O'Hearn", MB:75, xMB:77, TB:207, xTB:214, BB:58, xBB:58, AB:474, xAB:474, H:133, xH:133, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Dillon Dingler", MB:58, xMB:60, TB:185, xTB:190, BB:23, xBB:23, AB:435, xAB:435, H:121, xH:121, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jeremiah Jackson", MB:23, xMB:17, TB:76, xTB:55, BB:11, xBB:11, AB:170, xAB:170, H:47, xH:47, SB:0, xSB:0, CS:2, xCS:2},
+  {Name:"Ben Rice", MB:76, xMB:85, TB:233, xTB:263, BB:50, xBB:50, AB:467, xAB:467, H:119, xH:119, SB:3, xSB:3, CS:2, xCS:2},
+  {Name:"Kyle Karros", MB:12, xMB:10, TB:38, xTB:32, BB:15, xBB:15, AB:137, xAB:137, H:31, xH:31, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Christian Encarnacion-Strand", MB:10, xMB:9, TB:49, xTB:45, BB:3, xBB:3, AB:130, xAB:130, H:27, xH:27, SB:0, xSB:0, CS:2, xCS:2},
+  {Name:"Cody Freeman", MB:10, xMB:12, TB:39, xTB:47, BB:5, xBB:5, AB:114, xAB:114, H:26, xH:26, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Willie MacIver", MB:8, xMB:7, TB:33, xTB:26, BB:7, xBB:7, AB:102, xAB:102, H:19, xH:19, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Miguel Vargas", MB:64, xMB:76, TB:202, xTB:240, BB:56, xBB:56, AB:504, xAB:504, H:118, xH:118, SB:6, xSB:6, CS:0, xCS:0},
+  {Name:"Amed Rosario", MB:24, xMB:21, TB:79, xTB:67, BB:7, xBB:7, AB:181, xAB:181, H:50, xH:50, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Brent Rooker", MB:100, xMB:100, TB:300, xTB:300, BB:65, xBB:65, AB:626, xAB:626, H:164, xH:164, SB:6, xSB:6, CS:1, xCS:1},
+  {Name:"Heliot Ramos", MB:77, xMB:89, TB:248, xTB:288, BB:52, xBB:52, AB:620, xAB:620, H:159, xH:159, SB:6, xSB:6, CS:4, xCS:4},
+  {Name:"Josh Smith", MB:60, xMB:63, TB:181, xTB:197, BB:55, xBB:51, AB:495, xAB:510, H:124, xH:125, SB:12, xSB:12, CS:3, xCS:3},
+  {Name:"Marcelo Mayer", MB:13, xMB:6, TB:51, xTB:33, BB:8, xBB:4, AB:127, xAB:129, H:29, xH:22, SB:0, xSB:3, CS:2, xCS:1},
+  {Name:"Kyle Teel", MB:38, xMB:40, TB:104, xTB:109, BB:37, xBB:37, AB:253, xAB:253, H:69, xH:69, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Edouard Julien", MB:17, xMB:24, TB:59, xTB:83, BB:22, xBB:22, AB:182, xAB:182, H:40, xH:40, SB:0, xSB:0, CS:3, xCS:3},
+  {Name:"Willson Contreras", MB:70, xMB:76, TB:219, xTB:238, BB:44, xBB:44, AB:490, xAB:490, H:126, xH:126, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Tyler Soderstrom", MB:91, xMB:92, TB:266, xTB:270, BB:55, xBB:55, AB:561, xAB:561, H:155, xH:155, SB:8, xSB:8, CS:3, xCS:3},
+  {Name:"Luis Matos", MB:20, xMB:20, TB:73, xTB:74, BB:11, xBB:11, AB:172, xAB:172, H:38, xH:38, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Colton Cowser", MB:35, xMB:38, TB:126, xTB:138, BB:27, xBB:27, AB:327, xAB:327, H:64, xH:64, SB:14, xSB:14, CS:0, xCS:0},
+  {Name:"Nick Allen", MB:26, xMB:30, TB:93, xTB:111, BB:31, xBB:31, AB:371, xAB:371, H:82, xH:82, SB:8, xSB:8, CS:7, xCS:7},
+  {Name:"Francisco Lindor", MB:104, xMB:108, TB:300, xTB:313, BB:65, xBB:66, AB:644, xAB:681, H:172, xH:184, SB:31, xSB:15, CS:6, xCS:4},
+  {Name:"Nick Martini", MB:9, xMB:10, TB:30, xTB:35, BB:9, xBB:9, AB:102, xAB:102, H:23, xH:23, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Ian Happ", MB:82, xMB:92, TB:239, xTB:268, BB:87, xBB:87, AB:569, xAB:569, H:138, xH:138, SB:6, xSB:6, CS:3, xCS:3},
+  {Name:"Ildemaro Vargas", MB:12, xMB:9, TB:44, xTB:33, BB:2, xBB:2, AB:115, xAB:115, H:31, xH:31, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Isiah Kiner-Falefa", MB:43, xMB:43, TB:144, xTB:143, BB:17, xBB:17, AB:431, xAB:431, H:113, xH:113, SB:15, xSB:15, CS:4, xCS:4},
+  {Name:"Will Smith", MB:71, xMB:74, TB:180, xTB:188, BB:64, xBB:64, AB:362, xAB:362, H:107, xH:107, SB:2, xSB:2, CS:3, xCS:3},
+  {Name:"Logan O'Hoppe", MB:40, xMB:48, TB:157, xTB:189, BB:24, xBB:24, AB:423, xAB:423, H:90, xH:90, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Brandon Nimmo", MB:84, xMB:94, TB:256, xTB:286, BB:50, xBB:50, AB:587, xAB:587, H:154, xH:154, SB:13, xSB:13, CS:1, xCS:1},
+  {Name:"Nathan Lukes", MB:49, xMB:52, TB:158, xTB:167, BB:38, xBB:38, AB:388, xAB:388, H:99, xH:99, SB:2, xSB:2, CS:4, xCS:4},
+  {Name:"Colson Montgomery", MB:41, xMB:37, TB:135, xTB:119, BB:25, xBB:25, AB:255, xAB:255, H:61, xH:61, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Yainer Diaz", MB:64, xMB:70, TB:226, xTB:248, BB:20, xBB:20, AB:542, xAB:542, H:139, xH:139, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Steven Kwan", MB:80, xMB:72, TB:234, xTB:213, BB:55, xBB:63, AB:625, xAB:604, H:170, xH:154, SB:21, xSB:19, CS:5, xCS:5},
+  {Name:"Taylor Ward", MB:87, xMB:89, TB:275, xTB:270, BB:75, xBB:72, AB:579, xAB:592, H:132, xH:146, SB:4, xSB:14, CS:1, xCS:4},
+  {Name:"Tommy Pham", MB:48, xMB:56, TB:145, xTB:170, BB:50, xBB:50, AB:392, xAB:392, H:96, xH:96, SB:5, xSB:5, CS:3, xCS:3},
+  {Name:"Hunter Goodman", MB:89, xMB:79, TB:281, xTB:249, BB:33, xBB:33, AB:540, xAB:540, H:150, xH:150, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Geraldo Perdomo", MB:110, xMB:93, TB:276, xTB:270, BB:94, xBB:77, AB:597, xAB:648, H:173, xH:166, SB:27, xSB:17, CS:6, xCS:5},
+  {Name:"Kristian Campbell", MB:25, xMB:23, TB:79, xTB:75, BB:29, xBB:29, AB:229, xAB:229, H:51, xH:51, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Ozzie Albies", MB:68, xMB:74, TB:220, xTB:240, BB:55, xBB:55, AB:603, xAB:603, H:145, xH:145, SB:14, xSB:14, CS:3, xCS:3},
+  {Name:"Ke'Bryan Hayes", MB:47, xMB:63, TB:161, xTB:219, BB:36, xBB:36, AB:527, xAB:527, H:124, xH:124, SB:12, xSB:12, CS:3, xCS:3},
+  {Name:"Kyle Stowers", MB:80, xMB:78, TB:217, xTB:213, BB:48, xBB:48, AB:399, xAB:399, H:115, xH:115, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"JJ Bleday", MB:36, xMB:34, TB:124, xTB:118, BB:36, xBB:36, AB:307, xAB:307, H:65, xH:65, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Santiago Espinal", MB:25, xMB:31, TB:85, xTB:107, BB:21, xBB:21, AB:301, xAB:301, H:73, xH:73, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Nick Kurtz", MB:99, xMB:80, TB:260, xTB:210, BB:63, xBB:63, AB:420, xAB:420, H:122, xH:122, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Aaron Judge", MB:169, xMB:151, TB:372, xTB:331, BB:124, xBB:124, AB:541, xAB:541, H:179, xH:179, SB:12, xSB:12, CS:5, xCS:5},
+  {Name:"Jorge Polanco", MB:75, xMB:77, TB:233, xTB:237, BB:42, xBB:42, AB:471, xAB:471, H:125, xH:125, SB:6, xSB:6, CS:3, xCS:3},
+  {Name:"Jhonkensy Noel", MB:8, xMB:7, TB:44, xTB:41, BB:4, xBB:4, AB:148, xAB:148, H:24, xH:24, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jake Bauers", MB:27, xMB:34, TB:73, xTB:93, BB:32, xBB:32, AB:183, xAB:183, H:43, xH:43, SB:8, xSB:8, CS:1, xCS:1},
+  {Name:"Lourdes Gurriel Jr.", MB:61, xMB:65, TB:209, xTB:224, BB:31, xBB:31, AB:500, xAB:500, H:124, xH:124, SB:10, xSB:10, CS:4, xCS:4},
+  {Name:"Kerry Carpenter", MB:60, xMB:58, TB:215, xTB:209, BB:18, xBB:18, AB:433, xAB:433, H:109, xH:109, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Andrew McCutchen", MB:58, xMB:72, TB:175, xTB:216, BB:67, xBB:67, AB:477, xAB:477, H:114, xH:114, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Randal Grichuk", MB:29, xMB:35, TB:109, xTB:132, BB:17, xBB:17, AB:272, xAB:272, H:62, xH:62, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Freddy Fermin", MB:31, xMB:36, TB:108, xTB:125, BB:19, xBB:19, AB:319, xAB:319, H:80, xH:80, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Bryce Harper", MB:88, xMB:89, TB:244, xTB:249, BB:70, xBB:70, AB:501, xAB:501, H:131, xH:131, SB:12, xSB:12, CS:2, xCS:2},
+  {Name:"Chase Meidroth", MB:48, xMB:58, TB:144, xTB:177, BB:45, xBB:45, AB:450, xAB:450, H:114, xH:114, SB:14, xSB:14, CS:4, xCS:4},
+  {Name:"Gabriel Arias", MB:41, xMB:45, TB:157, xTB:172, BB:27, xBB:27, AB:432, xAB:432, H:95, xH:95, SB:8, xSB:8, CS:4, xCS:4},
+  {Name:"Max Muncy", MB:56, xMB:63, TB:147, xTB:168, BB:64, xBB:64, AB:313, xAB:313, H:76, xH:76, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Max Muncy", MB:19, xMB:21, TB:78, xTB:84, BB:10, xBB:10, AB:206, xAB:206, H:44, xH:44, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Gabriel Moreno", MB:42, xMB:43, TB:120, xTB:124, BB:29, xBB:29, AB:277, xAB:277, H:79, xH:79, SB:2, xSB:2, CS:2, xCS:2},
+  {Name:"Tyler Locklear", MB:7, xMB:6, TB:27, xTB:22, BB:10, xBB:10, AB:103, xAB:103, H:18, xH:18, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Jacob Wilson", MB:75, xMB:54, TB:216, xTB:171, BB:27, xBB:28, AB:486, xAB:433, H:151, xH:117, SB:5, xSB:6, CS:2, xCS:2},
+  {Name:"Brayan Rocchio", MB:32, xMB:35, TB:117, xTB:127, BB:22, xBB:22, AB:344, xAB:344, H:80, xH:80, SB:8, xSB:8, CS:4, xCS:4},
+  {Name:"Lars Nootbaar", MB:58, xMB:79, TB:184, xTB:252, BB:64, xBB:64, AB:509, xAB:509, H:119, xH:119, SB:4, xSB:4, CS:5, xCS:5},
+  {Name:"Luis Rengifo", MB:47, xMB:53, TB:168, xTB:193, BB:33, xBB:33, AB:501, xAB:501, H:119, xH:119, SB:10, xSB:10, CS:7, xCS:7},
+  {Name:"Brett Baty", MB:55, xMB:61, TB:171, xTB:189, BB:33, xBB:33, AB:393, xAB:393, H:100, xH:100, SB:8, xSB:8, CS:0, xCS:0},
+  {Name:"Max Kepler", MB:49, xMB:62, TB:163, xTB:206, BB:48, xBB:48, AB:417, xAB:417, H:90, xH:90, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Gavin Sheets", MB:66, xMB:74, TB:211, xTB:237, BB:44, xBB:44, AB:492, xAB:492, H:124, xH:124, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Hunter Renfroe", MB:6, xMB:9, TB:24, xTB:38, BB:8, xBB:8, AB:99, xAB:99, H:18, xH:18, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Kevin Newman", MB:7, xMB:7, TB:31, xTB:34, BB:1, xBB:1, AB:114, xAB:114, H:23, xH:23, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Michael Toglia", MB:28, xMB:29, TB:108, xTB:110, BB:28, xBB:28, AB:306, xAB:306, H:58, xH:58, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Will Wagner", MB:12, xMB:10, TB:36, xTB:31, BB:17, xBB:17, AB:129, xAB:129, H:29, xH:29, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Eric Wagaman", MB:54, xMB:63, TB:180, xTB:212, BB:32, xBB:32, AB:476, xAB:476, H:119, xH:119, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Mookie Betts", MB:79, xMB:86, TB:239, xTB:260, BB:61, xBB:61, AB:589, xAB:589, H:152, xH:152, SB:8, xSB:8, CS:2, xCS:2},
+  {Name:"Jose Altuve", MB:84, xMB:71, TB:260, xTB:228, BB:55, xBB:45, AB:588, xAB:551, H:156, xH:142, SB:10, xSB:11, CS:6, xCS:3},
+  {Name:"Miguel Andujar", MB:53, xMB:46, TB:151, xTB:130, BB:17, xBB:17, AB:321, xAB:321, H:102, xH:102, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Vladimir Guerrero Jr.", MB:104, xMB:121, TB:275, xTB:321, BB:81, xBB:81, AB:589, xAB:589, H:172, xH:172, SB:6, xSB:6, CS:3, xCS:3},
+  {Name:"Lawrence Butler", MB:71, xMB:81, TB:230, xTB:242, BB:59, xBB:62, AB:569, xAB:558, H:133, xH:142, SB:22, xSB:11, CS:7, xCS:3},
+  {Name:"Brandon Lowe", MB:74, xMB:72, TB:242, xTB:237, BB:38, xBB:38, AB:507, xAB:507, H:130, xH:130, SB:3, xSB:3, CS:2, xCS:2},
+  {Name:"Curtis Mead", MB:22, xMB:24, TB:77, xTB:85, BB:15, xBB:15, AB:240, xAB:240, H:56, xH:56, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Mike Yastrzemski", MB:65, xMB:76, TB:192, xTB:225, BB:72, xBB:72, AB:477, xAB:477, H:111, xH:111, SB:7, xSB:7, CS:2, xCS:2},
+  {Name:"Tyler Stephenson", MB:39, xMB:42, TB:126, xTB:133, BB:37, xBB:37, AB:299, xAB:299, H:69, xH:69, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Royce Lewis", MB:43, xMB:48, TB:146, xTB:163, BB:25, xBB:25, AB:376, xAB:376, H:89, xH:89, SB:12, xSB:12, CS:2, xCS:2},
+  {Name:"Jonah Bride", MB:5, xMB:7, TB:21, xTB:28, BB:11, xBB:11, AB:112, xAB:112, H:19, xH:19, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jac Caglianone", MB:14, xMB:22, TB:62, xTB:99, BB:18, xBB:18, AB:210, xAB:210, H:33, xH:33, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Mickey Gasper", MB:6, xMB:6, TB:22, xTB:24, BB:10, xBB:10, AB:95, xAB:95, H:15, xH:15, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Joshua Palacios", MB:11, xMB:14, TB:39, xTB:52, BB:12, xBB:12, AB:128, xAB:128, H:26, xH:26, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Matt Wallner", MB:46, xMB:46, TB:156, xTB:156, BB:46, xBB:46, AB:336, xAB:336, H:68, xH:68, SB:4, xSB:4, CS:3, xCS:3},
+  {Name:"Jake Rogers", MB:11, xMB:14, TB:41, xTB:50, BB:15, xBB:15, AB:123, xAB:123, H:23, xH:23, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Nick Fortes", MB:21, xMB:22, TB:76, xTB:80, BB:14, xBB:14, AB:218, xAB:218, H:50, xH:50, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"TJ Friedl", MB:79, xMB:80, TB:219, xTB:224, BB:81, xBB:81, AB:579, xAB:579, H:151, xH:151, SB:12, xSB:12, CS:3, xCS:3},
+  {Name:"Nacho Alvarez Jr.", MB:17, xMB:15, TB:62, xTB:53, BB:12, xBB:12, AB:188, xAB:188, H:44, xH:44, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Trent Grisham", MB:78, xMB:84, TB:229, xTB:247, BB:82, xBB:82, AB:494, xAB:494, H:116, xH:116, SB:3, xSB:3, CS:2, xCS:2},
+  {Name:"Spencer Torkelson", MB:84, xMB:87, TB:257, xTB:268, BB:72, xBB:72, AB:563, xAB:563, H:135, xH:135, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Adley Rutschman", MB:36, xMB:45, TB:118, xTB:146, BB:40, xBB:40, AB:322, xAB:322, H:71, xH:71, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"J.P. Crawford", MB:75, xMB:85, TB:211, xTB:238, BB:74, xBB:74, AB:570, xAB:570, H:151, xH:151, SB:8, xSB:8, CS:1, xCS:1},
+  {Name:"Rob Refsnyder", MB:32, xMB:30, TB:88, xTB:82, BB:24, xBB:24, AB:182, xAB:182, H:49, xH:49, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Riley Greene", MB:92, xMB:89, TB:296, xTB:288, BB:46, xBB:46, AB:600, xAB:600, H:155, xH:155, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Lenyn Sosa", MB:65, xMB:67, TB:225, xTB:231, BB:18, xBB:18, AB:518, xAB:518, H:137, xH:137, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Junior Caminero", MB:101, xMB:101, TB:322, xTB:323, BB:41, xBB:41, AB:602, xAB:602, H:159, xH:159, SB:7, xSB:7, CS:1, xCS:1},
+  {Name:"Ryan McMahon", MB:60, xMB:71, TB:194, xTB:230, BB:70, xBB:70, AB:509, xAB:509, H:109, xH:109, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Justyn-Henry Malloy", MB:11, xMB:12, TB:32, xTB:36, BB:20, xBB:20, AB:104, xAB:104, H:23, xH:23, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Andrew Benintendi", MB:56, xMB:60, TB:181, xTB:196, BB:40, xBB:40, AB:420, xAB:420, H:101, xH:101, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Joey Bart", MB:33, xMB:41, TB:97, xTB:120, BB:40, xBB:40, AB:285, xAB:285, H:71, xH:71, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"David Fry", MB:12, xMB:11, TB:53, xTB:49, BB:9, xBB:9, AB:146, xAB:146, H:25, xH:25, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Ketel Marte", MB:91, xMB:94, TB:248, xTB:257, BB:64, xBB:64, AB:480, xAB:480, H:136, xH:136, SB:4, xSB:4, CS:2, xCS:2},
+  {Name:"Adam Frazier", MB:46, xMB:43, TB:153, xTB:141, BB:26, xBB:26, AB:419, xAB:419, H:112, xH:112, SB:8, xSB:8, CS:6, xCS:6},
+  {Name:"Josh Jung", MB:55, xMB:60, TB:188, xTB:206, BB:27, xBB:27, AB:482, xAB:482, H:121, xH:121, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Oswaldo Cabrera", MB:10, xMB:6, TB:33, xTB:18, BB:11, xBB:11, AB:107, xAB:107, H:26, xH:26, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Luis Torrens", MB:25, xMB:34, TB:90, xTB:121, BB:19, xBB:19, AB:261, xAB:261, H:59, xH:59, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Starling Marte", MB:39, xMB:40, TB:120, xTB:122, BB:22, xBB:22, AB:293, xAB:293, H:79, xH:79, SB:7, xSB:7, CS:2, xCS:2},
+  {Name:"Graham Pauley", MB:19, xMB:19, TB:59, xTB:60, BB:21, xBB:21, AB:161, xAB:161, H:36, xH:36, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Riley Adams", MB:19, xMB:22, TB:81, xTB:92, BB:18, xBB:18, AB:263, xAB:263, H:49, xH:49, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Brendan Donovan", MB:66, xMB:75, TB:194, xTB:221, BB:42, xBB:42, AB:460, xAB:460, H:132, xH:132, SB:3, xSB:3, CS:3, xCS:3},
+  {Name:"Troy Johnston", MB:15, xMB:14, TB:47, xTB:46, BB:8, xBB:8, AB:112, xAB:112, H:31, xH:31, SB:2, xSB:2, CS:2, xCS:2},
+  {Name:"Adael Amador", MB:7, xMB:10, TB:30, xTB:43, BB:11, xBB:11, AB:113, xAB:113, H:20, xH:20, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Carlos Correa", MB:72, xMB:81, TB:216, xTB:244, BB:45, xBB:45, AB:537, xAB:537, H:148, xH:148, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Dominic Canzone", MB:42, xMB:44, TB:117, xTB:125, BB:20, xBB:20, AB:243, xAB:243, H:73, xH:73, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Alec Bohm", MB:63, xMB:71, TB:190, xTB:214, BB:29, xBB:29, AB:464, xAB:464, H:133, xH:133, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Jeff McNeil", MB:54, xMB:57, TB:164, xTB:172, BB:49, xBB:49, AB:399, xAB:399, H:97, xH:97, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Kyle Tucker", MB:92, xMB:99, TB:232, xTB:252, BB:87, xBB:87, AB:500, xAB:500, H:133, xH:133, SB:25, xSB:25, CS:3, xCS:3},
+  {Name:"Michael Busch", MB:92, xMB:91, TB:274, xTB:272, BB:56, xBB:56, AB:524, xAB:524, H:137, xH:137, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Luis Arraez", MB:80, xMB:67, TB:243, xTB:201, BB:34, xBB:34, AB:620, xAB:620, H:181, xH:181, SB:11, xSB:11, CS:4, xCS:4},
+  {Name:"Paul DeJong", MB:20, xMB:22, TB:72, xTB:77, BB:11, xBB:11, AB:193, xAB:193, H:44, xH:44, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Masataka Yoshida", MB:23, xMB:24, TB:73, xTB:76, BB:10, xBB:10, AB:188, xAB:188, H:50, xH:50, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Austin Wells", MB:48, xMB:51, TB:175, xTB:183, BB:30, xBB:30, AB:401, xAB:401, H:88, xH:88, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"James McCann", MB:16, xMB:9, TB:53, xTB:29, BB:8, xBB:8, AB:123, xAB:123, H:32, xH:32, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Chas McCormick", MB:7, xMB:9, TB:29, xTB:38, BB:9, xBB:9, AB:100, xAB:100, H:21, xH:21, SB:2, xSB:2, CS:3, xCS:3},
+  {Name:"Brendan Rodgers", MB:8, xMB:11, TB:32, xTB:44, BB:11, xBB:11, AB:115, xAB:115, H:22, xH:22, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Tyler Heineman", MB:22, xMB:21, TB:62, xTB:61, BB:12, xBB:12, AB:149, xAB:149, H:43, xH:43, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Jurickson Profar", MB:49, xMB:52, TB:138, xTB:149, BB:48, xBB:48, AB:318, xAB:318, H:78, xH:78, SB:9, xSB:9, CS:2, xCS:2},
+  {Name:"Travis d'Arnaud", MB:18, xMB:22, TB:73, xTB:89, BB:13, xBB:13, AB:213, xAB:213, H:42, xH:42, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Pavin Smith", MB:38, xMB:37, TB:106, xTB:103, BB:41, xBB:41, AB:244, xAB:244, H:63, xH:63, SB:2, xSB:2, CS:2, xCS:2},
+  {Name:"Kyle Farmer", MB:27, xMB:27, TB:101, xTB:102, BB:17, xBB:17, AB:277, xAB:277, H:63, xH:63, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Hunter Feduccia", MB:5, xMB:12, TB:18, xTB:43, BB:15, xBB:15, AB:88, xAB:88, H:13, xH:13, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Liam Hicks", MB:39, xMB:42, TB:115, xTB:125, BB:43, xBB:43, AB:332, xAB:332, H:82, xH:82, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Nathaniel Lowe", MB:64, xMB:70, TB:206, xTB:229, BB:62, xBB:62, AB:540, xAB:540, H:123, xH:123, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Christian Walker", MB:70, xMB:77, TB:246, xTB:270, BB:40, xBB:40, AB:585, xAB:585, H:139, xH:139, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Gleyber Torres", MB:74, xMB:92, TB:206, xTB:255, BB:85, xBB:85, AB:532, xAB:532, H:136, xH:136, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Josh Rojas", MB:13, xMB:17, TB:49, xTB:65, BB:19, xBB:19, AB:189, xAB:189, H:34, xH:34, SB:4, xSB:4, CS:1, xCS:1},
+  {Name:"Yordan Alvarez", MB:27, xMB:34, TB:71, xTB:92, BB:28, xBB:28, AB:165, xAB:165, H:45, xH:45, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"William Contreras", MB:80, xMB:92, TB:226, xTB:272, BB:84, xBB:62, AB:566, xAB:590, H:147, xH:161, SB:6, xSB:8, CS:4, xCS:2},
+  {Name:"Bo Bichette", MB:99, xMB:103, TB:281, xTB:293, BB:40, xBB:40, AB:582, xAB:582, H:181, xH:181, SB:4, xSB:4, CS:3, xCS:3},
+  {Name:"Enmanuel Valdez", MB:10, xMB:9, TB:33, xTB:30, BB:11, xBB:11, AB:91, xAB:91, H:19, xH:19, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Danny Jansen", MB:36, xMB:38, TB:115, xTB:121, BB:42, xBB:42, AB:288, xAB:288, H:62, xH:62, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Paul Goldschmidt", MB:64, xMB:73, TB:197, xTB:225, BB:36, xBB:36, AB:489, xAB:489, H:134, xH:134, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Drake Baldwin", MB:64, xMB:72, TB:190, xTB:213, BB:38, xBB:38, AB:405, xAB:405, H:111, xH:111, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Trevor Larnach", MB:64, xMB:71, TB:203, xTB:223, BB:53, xBB:53, AB:503, xAB:503, H:126, xH:126, SB:4, xSB:4, CS:4, xCS:4},
+  {Name:"Brooks Lee", MB:51, xMB:58, TB:180, xTB:206, BB:31, xBB:31, AB:487, xAB:487, H:115, xH:115, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Alex Verdugo", MB:17, xMB:19, TB:57, xTB:65, BB:14, xBB:14, AB:197, xAB:197, H:47, xH:47, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Mark Vientos", MB:50, xMB:56, TB:175, xTB:198, BB:30, xBB:30, AB:424, xAB:424, H:99, xH:99, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Cal Raleigh", MB:124, xMB:112, TB:351, xTB:315, BB:97, xBB:97, AB:596, xAB:596, H:147, xH:147, SB:14, xSB:14, CS:4, xCS:4},
+  {Name:"Jorge Soler", MB:31, xMB:36, TB:108, xTB:126, BB:28, xBB:28, AB:279, xAB:279, H:60, xH:60, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Nolan Schanuel", MB:66, xMB:68, TB:190, xTB:196, BB:59, xBB:59, AB:488, xAB:488, H:129, xH:129, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Michael Conforto", MB:41, xMB:56, TB:139, xTB:190, BB:56, xBB:56, AB:418, xAB:418, H:83, xH:83, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Alex Bregman", MB:70, xMB:71, TB:200, xTB:204, BB:51, xBB:51, AB:433, xAB:433, H:118, xH:118, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Michael Massey", MB:22, xMB:27, TB:82, xTB:100, BB:9, xBB:9, AB:262, xAB:262, H:64, xH:64, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"LaMonte Wade Jr.", MB:14, xMB:21, TB:53, xTB:78, BB:27, xBB:27, AB:209, xAB:209, H:35, xH:35, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Carson Kelly", MB:53, xMB:57, TB:158, xTB:172, BB:45, xBB:45, AB:369, xAB:369, H:92, xH:92, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Andrew Vaughn", MB:51, xMB:64, TB:167, xTB:208, BB:31, xBB:31, AB:406, xAB:406, H:103, xH:103, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Anthony Santander", MB:15, xMB:17, TB:57, xTB:64, BB:25, xBB:25, AB:194, xAB:194, H:34, xH:34, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Reese McGuire", MB:15, xMB:15, TB:59, xTB:60, BB:4, xBB:4, AB:133, xAB:133, H:30, xH:30, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Francisco Alvarez", MB:36, xMB:36, TB:110, xTB:110, BB:27, xBB:27, AB:246, xAB:246, H:63, xH:63, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Mitch Garver", MB:26, xMB:28, TB:87, xTB:95, BB:30, xBB:30, AB:254, xAB:254, H:53, xH:53, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Miguel Amaya", MB:15, xMB:12, TB:48, xTB:39, BB:4, xBB:4, AB:96, xAB:96, H:27, xH:27, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Nolan Gorman", MB:39, xMB:40, TB:130, xTB:136, BB:47, xBB:47, AB:351, xAB:351, H:72, xH:72, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Miguel Rojas", MB:38, xMB:36, TB:115, xTB:110, BB:24, xBB:24, AB:290, xAB:290, H:76, xH:76, SB:5, xSB:5, CS:0, xCS:0},
+  {Name:"Adrian Del Castillo", MB:14, xMB:5, TB:47, xTB:18, BB:8, xBB:8, AB:120, xAB:120, H:29, xH:29, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jonathan Aranda", MB:68, xMB:69, TB:181, xTB:184, BB:41, xBB:41, AB:370, xAB:370, H:117, xH:117, SB:0, xSB:0, CS:2, xCS:2},
+  {Name:"Kyle Schwarber", MB:122, xMB:123, TB:340, xTB:343, BB:108, xBB:108, AB:604, xAB:604, H:145, xH:145, SB:10, xSB:10, CS:2, xCS:2},
+  {Name:"Emmanuel Rivera", MB:10, xMB:8, TB:34, xTB:26, BB:6, xBB:6, AB:120, xAB:120, H:30, xH:30, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Ryan Jeffers", MB:56, xMB:60, TB:161, xTB:173, BB:50, xBB:50, AB:406, xAB:406, H:108, xH:108, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Ben Rortvedt", MB:5, xMB:11, TB:23, xTB:47, BB:11, xBB:11, AB:112, xAB:112, H:17, xH:17, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Ronny Mauricio", MB:19, xMB:18, TB:62, xTB:60, BB:15, xBB:15, AB:168, xAB:168, H:38, xH:38, SB:4, xSB:4, CS:0, xCS:0},
+  {Name:"Manny Machado", MB:96, xMB:110, TB:283, xTB:326, BB:55, xBB:55, AB:615, xAB:615, H:169, xH:169, SB:14, xSB:14, CS:3, xCS:3},
+  {Name:"Juan Soto", MB:128, xMB:144, TB:303, xTB:343, BB:127, xBB:127, AB:577, xAB:577, H:152, xH:152, SB:38, xSB:38, CS:4, xCS:4},
+  {Name:"Patrick Bailey", MB:37, xMB:41, TB:133, xTB:148, BB:30, xBB:30, AB:409, xAB:409, H:91, xH:91, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Dominic Smith", MB:29, xMB:25, TB:85, xTB:74, BB:15, xBB:15, AB:204, xAB:204, H:58, xH:58, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Samuel Basallo", MB:8, xMB:8, TB:36, xTB:39, BB:6, xBB:6, AB:109, xAB:109, H:18, xH:18, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Carlos Santana", MB:43, xMB:55, TB:135, xTB:173, BB:52, xBB:52, AB:415, xAB:415, H:91, xH:91, SB:7, xSB:7, CS:0, xCS:0},
+  {Name:"Isaac Paredes", MB:58, xMB:56, TB:173, xTB:165, BB:50, xBB:50, AB:378, xAB:378, H:96, xH:96, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"DJ LeMahieu", MB:15, xMB:7, TB:43, xTB:20, BB:14, xBB:14, AB:128, xAB:128, H:34, xH:34, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Freddie Freeman", MB:102, xMB:97, TB:279, xTB:267, BB:60, xBB:60, AB:556, xAB:556, H:164, xH:164, SB:6, xSB:6, CS:2, xCS:2},
+  {Name:"Alec Burleson", MB:78, xMB:83, TB:228, xTB:241, BB:39, xBB:39, AB:497, xAB:497, H:144, xH:144, SB:5, xSB:5, CS:1, xCS:1},
+  {Name:"Orlando Arcia", MB:14, xMB:15, TB:59, xTB:63, BB:10, xBB:10, AB:203, xAB:203, H:41, xH:41, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Vinnie Pasquantino", MB:94, xMB:99, TB:295, xTB:310, BB:49, xBB:49, AB:621, xAB:621, H:164, xH:164, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Nolan Arenado", MB:44, xMB:46, TB:151, xTB:160, BB:28, xBB:28, AB:401, xAB:401, H:95, xH:95, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Spencer Horwitz", MB:55, xMB:57, TB:158, xTB:164, BB:44, xBB:44, AB:364, xAB:364, H:99, xH:99, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Kyle Manzardo", MB:66, xMB:65, TB:214, xTB:213, BB:48, xBB:48, AB:470, xAB:470, H:110, xH:110, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Marcell Ozuna", MB:69, xMB:84, TB:195, xTB:236, BB:94, xBB:94, AB:487, xAB:487, H:113, xH:113, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Corey Seager", MB:69, xMB:79, TB:185, xTB:212, BB:58, xBB:58, AB:380, xAB:380, H:103, xH:103, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Pete Alonso", MB:109, xMB:118, TB:327, xTB:353, BB:61, xBB:61, AB:624, xAB:624, H:170, xH:170, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Justin Turner", MB:16, xMB:20, TB:53, xTB:68, BB:17, xBB:17, AB:169, xAB:169, H:37, xH:37, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Jonah Heim", MB:36, xMB:44, TB:131, xTB:161, BB:32, xBB:32, AB:395, xAB:395, H:84, xH:84, SB:3, xSB:3, CS:0, xCS:0},
+  {Name:"Matt Olson", MB:110, xMB:122, TB:302, xTB:335, BB:91, xBB:91, AB:624, xAB:624, H:170, xH:170, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Matt Thaiss", MB:15, xMB:17, TB:45, xTB:49, BB:29, xBB:29, AB:156, xAB:156, H:34, xH:34, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Matt Mervis", MB:11, xMB:10, TB:46, xTB:40, BB:11, xBB:11, AB:120, xAB:120, H:21, xH:21, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Josh Bell", MB:61, xMB:76, TB:195, xTB:244, BB:57, xBB:57, AB:468, xAB:468, H:111, xH:111, SB:0, xSB:0, CS:3, xCS:3},
+  {Name:"Joc Pederson", MB:24, xMB:33, TB:87, xTB:121, BB:34, xBB:34, AB:265, xAB:265, H:48, xH:48, SB:2, xSB:2, CS:0, xCS:0},
+  {Name:"Kyle Higashioka", MB:35, xMB:37, TB:122, xTB:127, BB:20, xBB:20, AB:303, xAB:303, H:73, xH:73, SB:3, xSB:3, CS:1, xCS:1},
+  {Name:"Ty France", MB:47, xMB:61, TB:160, xTB:208, BB:22, xBB:22, AB:444, xAB:444, H:114, xH:114, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Donovan Solano", MB:16, xMB:14, TB:56, xTB:50, BB:8, xBB:8, AB:166, xAB:166, H:41, xH:41, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Rafael Devers", MB:107, xMB:120, TB:291, xTB:325, BB:112, xBB:112, AB:607, xAB:607, H:153, xH:153, SB:1, xSB:1, CS:1, xCS:1},
+  {Name:"Austin Hedges", MB:10, xMB:12, TB:43, xTB:52, BB:18, xBB:18, AB:155, xAB:155, H:25, xH:25, SB:1, xSB:1, CS:2, xCS:2},
+  {Name:"Edgar Quero", MB:42, xMB:50, TB:130, xTB:153, BB:32, xBB:32, AB:365, xAB:365, H:98, xH:98, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Mike Tauchman", MB:47, xMB:49, TB:134, xTB:140, BB:45, xBB:45, AB:335, xAB:335, H:88, xH:88, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jose Herrera", MB:12, xMB:16, TB:43, xTB:54, BB:23, xBB:23, AB:166, xAB:166, H:31, xH:31, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Sean Murphy", MB:34, xMB:37, TB:119, xTB:129, BB:35, xBB:35, AB:291, xAB:291, H:58, xH:58, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Yohel Pozo", MB:16, xMB:14, TB:60, xTB:53, BB:7, xBB:7, AB:160, xAB:160, H:37, xH:37, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Rhys Hoskins", MB:38, xMB:40, TB:116, xTB:123, BB:38, xBB:38, AB:279, xAB:279, H:66, xH:66, SB:2, xSB:2, CS:1, xCS:1},
+  {Name:"Keibert Ruiz", MB:21, xMB:24, TB:81, xTB:93, BB:8, xBB:8, AB:255, xAB:255, H:63, xH:63, SB:0, xSB:0, CS:2, xCS:2},
+  {Name:"Wilmer Flores", MB:48, xMB:47, TB:159, xTB:157, BB:34, xBB:34, AB:419, xAB:419, H:101, xH:101, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Josh Naylor", MB:94, xMB:93, TB:251, xTB:246, BB:48, xBB:48, AB:543, xAB:543, H:160, xH:160, SB:30, xSB:30, CS:2, xCS:2},
+  {Name:"Triston Casas", MB:8, xMB:10, TB:30, xTB:36, BB:11, xBB:11, AB:99, xAB:99, H:18, xH:18, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Salvador Perez", MB:72, xMB:81, TB:266, xTB:300, BB:28, xBB:28, AB:597, xAB:597, H:141, xH:141, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Austin Wynns", MB:18, xMB:10, TB:56, xTB:31, BB:5, xBB:5, AB:103, xAB:103, H:30, xH:30, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Jose Trevino", MB:27, xMB:30, TB:99, xTB:109, BB:15, xBB:15, AB:282, xAB:282, H:67, xH:67, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Victor Caratini", MB:43, xMB:47, TB:139, xTB:153, BB:23, xBB:23, AB:344, xAB:344, H:89, xH:89, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Alejandro Kirk", MB:67, xMB:87, TB:190, xTB:246, BB:48, xBB:48, AB:451, xAB:451, H:127, xH:127, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Gio Urshela", MB:17, xMB:15, TB:59, xTB:53, BB:13, xBB:13, AB:181, xAB:181, H:43, xH:43, SB:0, xSB:0, CS:1, xCS:1},
+  {Name:"Jacob Stallings", MB:4, xMB:5, TB:20, xTB:27, BB:6, xBB:6, AB:119, xAB:119, H:16, xH:16, SB:0, xSB:0, CS:0, xCS:0},
+  {Name:"Rowdy Tellez", MB:35, xMB:39, TB:128, xTB:145, BB:17, xBB:17, AB:289, xAB:289, H:66, xH:66, SB:1, xSB:1, CS:0, xCS:0},
+  {Name:"Giancarlo Stanton", MB:52, xMB:48, TB:148, xTB:138, BB:29, xBB:29, AB:249, xAB:249, H:68, xH:68, SB:0, xSB:0, CS:0, xCS:0}
+];
+PLAYERS.forEach(p => {
+  p.pe = p.MB !== 0 ? +((( p.xMB - p.MB) / Math.abs(p.MB)) * 100).toFixed(1) : 0;
+});
+
+const MODEL_R2 = {TB:0.84, BB:0.81, AB:0.91, H:0.87, SB:0.62, CS:0.55};
+const THRESHOLD = 0.50;
+
+/* ============================================================
+   SCROLL PROGRESS BAR
+   ============================================================ */
+window.addEventListener('scroll', () => {
+  const h = document.documentElement;
+  const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
+  document.getElementById('progress-bar').style.width = pct + '%';
+});
+
+/* ============================================================
+   INTERSECTION OBSERVER — fade-in sections
+   ============================================================ */
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      // Trigger animated bars when R² chart enters view
+      if (e.target.id === 'performance') buildR2Chart(true);
+    }
+  });
+}, { threshold: 0.15 });
+
+document.querySelectorAll('.story-section').forEach(s => observer.observe(s));
+
+/* ============================================================
+   R² CHART
+   ============================================================ */
+function r2Color(r2) {
+  if (r2 >= 0.85) return '#4ade80';
+  if (r2 >= 0.70) return '#3b82f6';
+  if (r2 >= 0.55) return '#fbbf24';
+  return '#f87171';
+}
+function r2Quality(r2) {
+  if (r2 >= 0.85) return 'excellent';
+  if (r2 >= 0.70) return 'good';
+  if (r2 >= 0.55) return 'moderate';
+  return 'weak';
+}
+
+let r2Built = false;
+function buildR2Chart(animate) {
+  if (r2Built) return;
+  r2Built = true;
+  const el = document.getElementById('r2-chart');
+  el.innerHTML = Object.entries(MODEL_R2).map(([stat, r2]) => {
+    const pct = Math.round(r2 * 100);
+    const col = r2Color(r2);
+    return `
+      <div class="r2-row">
+        <span class="r2-stat">${stat}</span>
+        <div class="r2-track">
+          <div class="r2-fill" id="r2-${stat}"
+            style="width:0%;background:${col};transition:width 1.2s cubic-bezier(.4,0,.2,1);">
+            R²&nbsp;${r2.toFixed(2)}
+          </div>
+        </div>
+        <span class="r2-quality">${r2Quality(r2)}</span>
+      </div>`;
+  }).join('');
+
+  // Trigger animation next frame
+  requestAnimationFrame(() => {
+    Object.entries(MODEL_R2).forEach(([stat, r2]) => {
+      const el = document.getElementById('r2-' + stat);
+      if (el) el.style.width = Math.round(r2 * 100) + '%';
+    });
+  });
+}
+
+/* ============================================================
+   COMPONENT TABLE
+   ============================================================ */
+function buildCompTable() {
+  const tbody = document.getElementById('comp-tbody');
+  tbody.innerHTML = Object.entries(MODEL_R2).map(([stat, r2]) => {
+    const pass = r2 >= THRESHOLD;
+    return `
+      <tr>
+        <td style="color:#fff;font-weight:500">${stat}</td>
+        <td>${r2.toFixed(4)}</td>
+        <td>≥ ${THRESHOLD}</td>
+        <td class="${pass ? 'pass' : 'fail'}">${pass ? '✓ pass' : '✗ fail'}</td>
+        <td style="color:${pass ? 'var(--cyan)' : 'var(--muted)'}">
+          ${pass ? 'x' + stat + ' (expected)' : stat + ' (observed)'}
+        </td>
+      </tr>`;
+  }).join('');
+}
+buildCompTable();
+
+/* ============================================================
+   SCATTER PLOT (canvas)
+   ============================================================ */
+function buildScatter() {
+  const canvas = document.getElementById('scatter-canvas');
+  const callout = document.getElementById('callout');
+  const PAD = 48;
+
+  function draw() {
+    const W = canvas.offsetWidth;
+    const H = 340;
+    canvas.width  = W * devicePixelRatio;
+    canvas.height = H * devicePixelRatio;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    const vals = PLAYERS.map(p => [p.xMB, p.MB]);
+    const allV = vals.flat();
+    const vmin = Math.min(...allV) - 3;
+    const vmax = Math.max(...allV) + 3;
+    const toX = v => PAD + (v - vmin) / (vmax - vmin) * (W - PAD * 2);
+    const toY = v => H - PAD - (v - vmin) / (vmax - vmin) * (H - PAD * 2);
+
+    // Grid lines
+    ctx.strokeStyle = '#242c3d';
+    ctx.lineWidth = 1;
+    for (let v = Math.ceil(vmin); v <= vmax; v += 5) {
+      ctx.beginPath(); ctx.moveTo(toX(v), PAD); ctx.lineTo(toX(v), H - PAD); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(PAD, toY(v)); ctx.lineTo(W - PAD, toY(v)); ctx.stroke();
+    }
+
+    // Perfect line y = x
+    ctx.strokeStyle = '#3b4a5e';
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(toX(vmin), toY(vmin));
+    ctx.lineTo(toX(vmax), toY(vmax));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Axis labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = `${10 * devicePixelRatio / devicePixelRatio}px DM Mono, monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('xMB (predicted)', W / 2, H - 6);
+    ctx.save();
+    ctx.translate(12, H / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('MB (actual)', 0, 0);
+    ctx.restore();
+
+    // Dots
+    PLAYERS.forEach(p => {
+      const x = toX(p.xMB);
+      const y = toY(p.MB);
+      const isOver = p.pe > 5;
+      const isUnder = p.pe < -5;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = isOver ? '#f87171' : isUnder ? '#4ade80' : '#3b82f6';
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    // Store for hit-test
+    canvas._meta = { toX, toY, vmin, vmax, W, H };
+  }
+  draw();
+  window.addEventListener('resize', draw);
+
+  // Hover / touch callout
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const { toX, toY } = canvas._meta || {};
+    if (!toX) return;
+
+    let nearest = null, minD = 16;
+    PLAYERS.forEach(p => {
+      const dx = toX(p.xMB) - mx;
+      const dy = toY(p.MB) - my;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < minD) { minD = d; nearest = p; }
+    });
+
+    if (nearest) {
+      callout.style.left = (e.clientX - canvas.getBoundingClientRect().left + 12) + 'px';
+      callout.style.top  = (e.clientY - canvas.getBoundingClientRect().top  - 30) + 'px';
+      document.getElementById('c-name').textContent  = nearest.Name;
+      document.getElementById('c-stats').innerHTML   =
+        `MB ${nearest.MB} · xMB ${nearest.xMB}<br>error: ${nearest.pe > 0 ? '+' : ''}${nearest.pe}%`;
+      callout.classList.add('show');
+    } else {
+      callout.classList.remove('show');
+    }
+  });
+  canvas.addEventListener('mouseleave', () => callout.classList.remove('show'));
+}
+
+/* ============================================================
+   OUTLIER STRIP
+   ============================================================ */
+function buildOutliers() {
+  const sorted = [...PLAYERS].sort((a, b) => Math.abs(b.pe) - Math.abs(a.pe)).slice(0, 10);
+  const maxAbs = Math.max(...sorted.map(p => Math.abs(p.pe)));
+
+  document.getElementById('outlier-strip').innerHTML = sorted.map(p => {
+    const w   = Math.round((Math.abs(p.pe) / maxAbs) * 100);
+    const col = p.pe > 0 ? '#f87171' : '#4ade80';
+    return `
+      <div class="outlier-row">
+        <span class="outlier-name">${p.Name}</span>
+        <div class="outlier-track">
+          <div class="outlier-fill" style="width:${w}%;background:${col};opacity:0.85;"></div>
+        </div>
+        <span class="outlier-val" style="color:${col}">${p.pe > 0 ? '+' : ''}${p.pe}%</span>
+      </div>`;
+  }).join('');
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+buildR2Chart(false);
+buildScatter();
+buildOutliers();
+</script>
+</body>
+</html>
