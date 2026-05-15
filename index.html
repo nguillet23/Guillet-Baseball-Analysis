@@ -296,14 +296,14 @@ tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
 <!-- ── Navigation ── -->
 <nav id="top-nav">
   <span class="brand">Statcast xMB · 2025</span>
-  <button class="tab-btn active" onclick="showTab('lookup')">Player lookup</button>
-  <button class="tab-btn"        onclick="showTab('story')">Story</button>
-  <button class="tab-btn"        onclick="showTab('cards')">Report cards</button>
-  <button class="tab-btn"        onclick="showTab('rankings')">Rankings</button>
+  <button class="tab-btn active" data-tab="story" onclick="showTab('story', this)">Story</button>
+  <button class="tab-btn"        data-tab="lookup" onclick="showTab('lookup', this)">Player lookup</button>
+  <button class="tab-btn"        data-tab="cards" onclick="showTab('cards', this)">Report cards</button>
+  <button class="tab-btn"        data-tab="rankings" onclick="showTab('rankings', this)">Rankings</button>
 </nav>
 
 <!-- ══════════════ TAB 1 — LOOKUP ══════════════ -->
-<div id="tab-lookup" class="section active">
+<div id="tab-lookup" class="section">
   <h1 class="page-title">Player lookup</h1>
   <p class="page-sub">Search any 2025 batter to compare actual vs. expected stats. Use the simulator to recalculate MB with custom inputs.</p>
   <div class="search-wrap">
@@ -316,7 +316,7 @@ tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
 </div>
 
 <!-- ══════════════ TAB 2 — STORY ══════════════ -->
-<div id="tab-story" class="section">
+<div id="tab-story" class="section active">
 
   <div class="story-block">
     <div class="story-tag">Chapter 1 — The setup</div>
@@ -369,8 +369,8 @@ tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
     <h2 class="story-h">Predicted vs actual MB — 2025</h2>
     <p class="story-body">
       Each dot is a player. The dashed line is perfect prediction.
-      <strong style="color:var(--over)">Coral dots</strong> were over-predicted;
-      <strong style="color:var(--under)">green dots</strong> out-performed their Statcast profile.
+      <strong style="color:var(--over)">Coral dots</strong> were under-predicted;
+      <strong style="color:var(--under)">green dots</strong> were over-predicted and are better than expected.
       Hover to identify players.
     </p>
     <div class="scatter-wrap">
@@ -398,7 +398,7 @@ tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
 <!-- ══════════════ TAB 3 — CARDS ══════════════ -->
 <div id="tab-cards" class="section">
   <h1 class="page-title">Report cards</h1>
-  <p class="page-sub">Each card is graded A–F by how accurately xMB tracked MB. Click any card to open the full player lookup.</p>
+  <p class="page-sub">Each card is graded A–F in equal 85-player xMB buckets across the 425 batters: higher xMB earns a higher grade. Click any card to open the full player lookup.</p>
   <div class="toolbar">
     <input type="text" id="rc-search" placeholder="Filter by name…" oninput="rcRender()" style="width:200px;">
     <select id="rc-sort" onchange="rcRender()">
@@ -454,9 +454,16 @@ const PLAYERS = PLAYERS_RAW.map(p => ({
   ...p,
   pe: p.MB !== 0 ? +((( p.xMB - p.MB) / Math.abs(p.MB)) * 100).toFixed(1) : 0,
 }));
+
+const xMBRank = new Map(
+  [...PLAYERS]
+    .sort((a,b) => b.xMB - a.xMB)
+    .map((p, i) => [p.Name, i])
+);
+const gradeBucketSize = Math.ceil(PLAYERS.length / 5);
 PLAYERS.forEach(p => {
-  const a = Math.abs(p.pe);
-  p.grade = a <= 3 ? 'A' : a <= 7 ? 'B' : a <= 12 ? 'C' : a <= 20 ? 'D' : 'F';
+  const bucket = Math.min(Math.floor(xMBRank.get(p.Name) / gradeBucketSize), 4);
+  p.grade = ['A', 'B', 'C', 'D', 'F'][bucket];
 });
 
 const MODEL_R2  = {TB:0.84, BB:0.81, AB:0.91, H:0.87, SB:0.62, CS:0.55};
@@ -474,15 +481,18 @@ const GRADE_CFG = {
 /* ============================================================
    TAB SWITCHING
    ============================================================ */
-function showTab(name) {
+function showTab(name, button) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if (!button) button = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (button) button.classList.add('active');
   if (name === 'story')    initStory();
   if (name === 'cards')    rcInit();
   if (name === 'rankings') lbRender();
 }
+
+window.addEventListener('DOMContentLoaded', () => showTab('story'));
 
 /* ============================================================
    HELPERS
@@ -492,12 +502,12 @@ function initials(name) { return name.split(' ').map(w=>w[0]).join('').slice(0,2
 function badgeHtml(pe) {
   const a = Math.abs(pe);
   if (a <= 5)  return `<span class="badge badge-on">on track (${pe>0?'+':''}${pe}%)</span>`;
-  if (pe >  5) return `<span class="badge badge-over">+${pe}% over-predicted</span>`;
-  return             `<span class="badge badge-under">${pe}% under-predicted</span>`;
+  if (pe >  5) return `<span class="badge badge-under">+${pe}% over-predicted</span>`;
+  return             `<span class="badge badge-over">${pe}% under-predicted</span>`;
 }
 
 function errStyle(pe) {
-  return pe > 5 ? '#f87171' : pe < -5 ? '#4ade80' : '#3b82f6';
+  return pe > 5 ? '#4ade80' : pe < -5 ? '#f87171' : '#3b82f6';
 }
 
 /* ============================================================
@@ -713,7 +723,7 @@ function buildScatter() {
     PLAYERS.forEach(p => {
       ctx.beginPath();
       ctx.arc(toX(p.xMB), toY(p.MB), 4.5, 0, Math.PI*2);
-      ctx.fillStyle = p.pe>5?'#f87171': p.pe<-5?'#4ade80':'#3b82f6';
+      ctx.fillStyle = p.pe>5?'#4ade80': p.pe<-5?'#f87171':'#3b82f6';
       ctx.globalAlpha = 0.75; ctx.fill(); ctx.globalAlpha=1;
     });
     canvas._meta = { toX, toY };
@@ -747,7 +757,7 @@ function buildOutliers() {
   const maxAbs = Math.max(...sorted.map(p=>Math.abs(p.pe)));
   document.getElementById('outlier-strip').innerHTML = sorted.map(p=>{
     const w   = Math.round((Math.abs(p.pe)/maxAbs)*100);
-    const col = p.pe>0?'#f87171':'#4ade80';
+    const col = p.pe>0?'#4ade80':'#f87171';
     return `<div class="outlier-row">
       <span class="outlier-name">${p.Name}</span>
       <div class="outlier-track"><div class="outlier-fill" style="width:${w}%;background:${col};opacity:.85;"></div></div>
@@ -842,7 +852,8 @@ function jumpToPlayer(name) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-lookup').classList.add('active');
-  document.querySelector('.tab-btn').classList.add('active');
+  const lookupBtn = document.querySelector('.tab-btn[data-tab="lookup"]');
+  if (lookupBtn) lookupBtn.classList.add('active');
   document.getElementById('lu-search').value = name;
   const p = PLAYERS.find(x=>x.Name===name);
   if (p) luRenderCard(p);
@@ -920,7 +931,7 @@ function lbRender() {
     <div class="skpi"><div class="skpi-lbl">PLAYERS SHOWN</div><div class="skpi-val" style="color:var(--accent)">${filtered.length}</div></div>
     <div class="skpi"><div class="skpi-lbl">MEAN ABS ERR%</div><div class="skpi-val" style="color:var(--amber)">${avgM}%</div></div>
     <div class="skpi"><div class="skpi-lbl">OVER-PREDICTED</div><div class="skpi-val" style="color:var(--over)">${overP}%</div></div>
-    <div class="skpi"><div class="skpi-lbl">GRADE A (≤3%)</div><div class="skpi-val" style="color:var(--under)">${filtered.filter(p=>p.grade==='A').length}</div></div>`;
+    <div class="skpi"><div class="skpi-lbl">GRADE A (top 85 xMB)</div><div class="skpi-val" style="color:var(--under)">${filtered.filter(p=>p.grade==='A').length}</div></div>`;
 
   lbBuildThead();
 
