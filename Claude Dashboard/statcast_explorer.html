@@ -11,16 +11,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #0e1117;
-  --surface: #161b25;
-  --border:  #242c3d;
-  --accent:  #3b82f6;
-  --cyan:    #22d3ee;
-  --over:    #f87171;
-  --under:   #4ade80;
-  --amber:   #fbbf24;
-  --muted:   #64748b;
-  --text:    #e2e8f0;
+  --bg:      #14121b;
+  --surface: #1e1a28;
+  --border:  #2f2a3d;
+  --accent:  #8b5cf6;
+  --cyan:    #2dd4bf;
+  --over:    #fb7185;
+  --under:   #34d399;
+  --amber:   #f59e0b;
+  --muted:   #7c7690;
+  --text:    #ece7f5;
   --mono:    'DM Mono', monospace;
   --serif:   'Libre Baskerville', serif;
 }
@@ -31,7 +31,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--mono); min-
 /* ── Top nav ── */
 #top-nav {
   position: sticky; top: 0; z-index: 200;
-  background: rgba(14,17,23,0.95);
+  background: rgba(20,18,27,0.95);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 6px;
@@ -103,11 +103,11 @@ body { background: var(--bg); color: var(--text); font-family: var(--mono); min-
 .card-header {
   display: flex; align-items: center; gap: 1rem;
   padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
-  background: linear-gradient(135deg,#161b25,#1a2235);
+  background: linear-gradient(135deg,#1e1a28,#241f34);
 }
 .avatar {
   width: 50px; height: 50px; border-radius: 50%;
-  background: #1e3a5f; border: 2px solid var(--accent);
+  background: #34215c; border: 2px solid var(--accent);
   display: flex; align-items: center; justify-content: center;
   font-family: var(--serif); font-size: 1rem; font-weight: 700;
   color: var(--cyan); flex-shrink: 0;
@@ -127,14 +127,14 @@ body { background: var(--bg); color: var(--text); font-family: var(--mono); min-
 .bar-fill    { height: 100%; border-radius: 2px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
 .bar-key     { font-size: 0.62rem; width: 12px; }
 .badge       { display: inline-block; font-size: 0.65rem; padding: 2px 7px; border-radius: 4px; font-weight: 500; margin-top: 5px; }
-.badge-over  { background:rgba(248,113,113,.15); color:var(--over);  border:1px solid rgba(248,113,113,.3); }
-.badge-under { background:rgba(74,222,128,.15);  color:var(--under); border:1px solid rgba(74,222,128,.3); }
-.badge-on    { background:rgba(59,130,246,.15);  color:var(--accent);border:1px solid rgba(59,130,246,.3); }
+.badge-over  { background:rgba(251,113,133,.15); color:var(--over);  border:1px solid rgba(251,113,133,.3); }
+.badge-under { background:rgba(52,211,153,.15);  color:var(--under); border:1px solid rgba(52,211,153,.3); }
+.badge-on    { background:rgba(139,92,246,.15);  color:var(--accent);border:1px solid rgba(139,92,246,.3); }
 
 .mb-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 1.25rem 1.5rem; border-top: 1px solid var(--border);
-  background: #0b1118;
+  background: #100d17;
 }
 .mb-block  { text-align: center; }
 .mb-lbl    { font-size: 0.65rem; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
@@ -143,7 +143,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--mono); min-
 
 /* Simulator */
 .sim-panel {
-  background: #090d14; border: 1px solid var(--border);
+  background: #0c0910; border: 1px solid var(--border);
   border-radius: 10px; padding: 1.5rem; margin-top: 1.25rem;
 }
 .sim-title { font-family: var(--serif); font-size: 0.95rem; color: var(--cyan); margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
@@ -197,7 +197,7 @@ body { background: var(--bg); color: var(--text); font-family: var(--mono); min-
 
 .comp-table  { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
 .comp-table th { text-align: left; padding: 8px 12px; color: var(--muted); font-weight: 400; border-bottom: 1px solid var(--border); font-size: 0.68rem; letter-spacing: 0.06em; }
-.comp-table td { padding: 10px 12px; border-bottom: 1px solid rgba(36,44,61,0.5); }
+.comp-table td { padding: 10px 12px; border-bottom: 1px solid rgba(47,42,61,0.5); }
 .comp-table tr:last-child td { border-bottom: none; }
 .pass { color: var(--under); } .fail { color: var(--over); }
 
@@ -259,8 +259,8 @@ thead th    { padding: 9px 12px; text-align: left; color: var(--muted); font-siz
 thead th.sortable { cursor: pointer; }
 thead th.sortable:hover { color: var(--accent); }
 thead th.sort-active    { color: var(--cyan); }
-tbody tr { border-bottom: 1px solid rgba(36,44,61,.6); transition: background 0.1s; }
-tbody tr:hover { background: rgba(59,130,246,.04); }
+tbody tr { border-bottom: 1px solid rgba(47,42,61,.6); transition: background 0.1s; }
+tbody tr:hover { background: rgba(139,92,246,.04); }
 tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
 .rank-c  { color: var(--muted); font-weight: 500; width: 36px; }
 .name-c  { color: #fff; font-weight: 500; cursor: pointer; transition: color 0.15s; }
